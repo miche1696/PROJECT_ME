@@ -1,0 +1,25 @@
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--padding-sm);
+}
+
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.sidebar-content.drag-over-root {
+  background-color: rgba(var(--accent-color-rgb, 0, 122, 255), 0.1);
+  border: 2px dashed var(--accent-color);
+  border-radius: 8px;
+}

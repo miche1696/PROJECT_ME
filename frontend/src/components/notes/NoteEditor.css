@@ -1,0 +1,32 @@
+.note-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.editor-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+}
+
+.editor-textarea {
+  flex: 1;
+  padding: var(--padding-lg);
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: var(--font-family);
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+  background-color: var(--editor-bg);
+  color: var(--text-primary);
+}
+
+.editor-textarea::placeholder {
+  color: var(--text-secondary);
+}

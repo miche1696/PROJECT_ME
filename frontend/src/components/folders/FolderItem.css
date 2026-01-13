@@ -1,0 +1,55 @@
+.folder-item-container {
+  margin-bottom: 2px;
+}
+
+.folder-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+  user-select: none;
+}
+
+.folder-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.folder-item.drag-over {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.folder-item.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.folder-icon {
+  font-size: 16px;
+  margin-right: 8px;
+}
+
+.folder-name {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background-color: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.folder-children {
+  margin-top: 2px;
+}

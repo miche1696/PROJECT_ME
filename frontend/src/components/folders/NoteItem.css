@@ -1,0 +1,117 @@
+.note-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+  margin-bottom: 2px;
+  user-select: none;
+  position: relative;
+}
+
+.note-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.note-item:hover .note-actions {
+  opacity: 1;
+}
+
+.note-item.selected {
+  background-color: var(--sidebar-selected);
+}
+
+.note-item.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.note-icon {
+  font-size: 14px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.note-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.note-name {
+  font-size: var(--font-size-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+.note-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.note-item:hover .note-actions,
+.note-item .note-actions:focus-within {
+  opacity: 1;
+}
+
+.delete-button {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.delete-button:hover {
+  background-color: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+  border-color: rgba(255, 59, 48, 0.3);
+}
+
+.delete-button.confirm {
+  background-color: #ff3b30;
+  color: white;
+  border-color: #ff3b30;
+  font-weight: 600;
+}
+
+.delete-button.confirm:hover {
+  background-color: #ff2d20;
+  border-color: #ff2d20;
+}
+
+.delete-cancel-button {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.delete-cancel-button:hover {
+  background-color: var(--bg-secondary);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}

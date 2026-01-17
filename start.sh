@@ -46,9 +46,9 @@ cleanup() {
 trap cleanup SIGINT SIGTERM
 
 # Print header
-echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}╔════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║  Note-Taking App with Audio Transcription  ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════╝${NC}"
+echo -e "${GREEN}╚════════════════════════════════════════════╝${NC}"
 echo ""
 
 # Check if backend directory exists

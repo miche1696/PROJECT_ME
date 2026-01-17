@@ -5,19 +5,84 @@ import { transcriptionApi } from '../../api/transcription';
 import NoteItem from './NoteItem';
 import './FolderItem.css';
 
+const sortByName = (items) => {
+  if (!items) return [];
+  return [...items].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+};
+
+// Invalid characters for folder names
+const INVALID_CHARS = /[/\\:*?"<>|]/;
+
 const FolderItem = ({ folder, level = 0, onClearRootDragOver }) => {
   const [isExpanded, setIsExpanded] = useState(level === 0); // Root folder expanded by default
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const { createNote, refreshFolders, moveNote, moveFolder } = useNotes();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const { createNote, refreshFolders, moveNote, moveFolder, renameFolder } = useNotes();
   const { setError } = useApp();
 
+  const isRootFolder = level === 0 && folder.path === '';
+
   const handleToggle = (e) => {
-    // Don't toggle if clicking during drag or on drag handle
-    if (isDragging || e.target.closest('.folder-drag-handle')) {
+    // Don't toggle if clicking during drag, on drag handle, or while editing
+    if (isDragging || e.target.closest('.folder-drag-handle') || isEditing) {
       return;
     }
     setIsExpanded(!isExpanded);
+  };
+
+  const handleDoubleClick = (e) => {
+    e.stopPropagation();
+    // Don't allow renaming root folder
+    if (isRootFolder) return;
+    setEditName(folder.name);
+    setIsEditing(true);
+  };
+
+  const isValidFolderName = (name) => {
+    const trimmed = name.trim();
+    // Empty or whitespace-only
+    if (!trimmed) return false;
+    // Contains invalid characters
+    if (INVALID_CHARS.test(trimmed)) return false;
+    // Reserved names on Windows
+    const reserved = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
+    if (reserved.test(trimmed)) return false;
+    // Starts or ends with a dot or space
+    if (trimmed.startsWith('.') || trimmed.endsWith('.')) return false;
+    return true;
+  };
+
+  const handleRenameSubmit = async () => {
+    const newName = editName.trim();
+
+    // Silently cancel if name is invalid or unchanged
+    if (!isValidFolderName(newName) || newName === folder.name) {
+      setIsEditing(false);
+      return;
+    }
+
+    try {
+      await renameFolder(folder.path, newName);
+    } catch (error) {
+      // Silently ignore errors (e.g., name already exists)
+      console.log('Rename cancelled:', error.message);
+    }
+    setIsEditing(false);
+  };
+
+  const handleRenameKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleRenameSubmit();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+    }
+  };
+
+  const handleRenameBlur = () => {
+    handleRenameSubmit();
   };
 
   // Check if target folder is a descendant of source folder
@@ -160,24 +225,36 @@ const FolderItem = ({ folder, level = 0, onClearRootDragOver }) => {
     paddingLeft: `${level * 16}px`,
   };
 
-  const isRootFolder = level === 0 && folder.path === '';
-
   return (
     <div className="folder-item-container">
       <div
-        className={`folder-item ${isDragOver ? 'drag-over' : ''} ${isDragging ? 'dragging' : ''}`}
+        className={`folder-item ${isDragOver ? 'drag-over' : ''} ${isDragging ? 'dragging' : ''} ${isEditing ? 'editing' : ''}`}
         style={indentStyle}
         onClick={handleToggle}
+        onDoubleClick={handleDoubleClick}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        draggable={!isRootFolder}
+        draggable={!isRootFolder && !isEditing}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
         <span className="folder-icon">{isExpanded ? '📂' : '📁'}</span>
-        <span className="folder-name">{folder.name}</span>
-        {folder.notes && folder.notes.length > 0 && (
+        {isEditing ? (
+          <input
+            type="text"
+            className="folder-name-input"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onKeyDown={handleRenameKeyDown}
+            onBlur={handleRenameBlur}
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className="folder-name">{folder.name}</span>
+        )}
+        {!isEditing && folder.notes && folder.notes.length > 0 && (
           <span className="folder-count">{folder.notes.length}</span>
         )}
       </div>
@@ -185,12 +262,12 @@ const FolderItem = ({ folder, level = 0, onClearRootDragOver }) => {
       {isExpanded && (
         <div className="folder-children">
           {/* Render notes in this folder */}
-          {folder.notes && folder.notes.map((note) => (
+          {sortByName(folder.notes).map((note) => (
             <NoteItem key={note.path} note={note} level={level + 1} />
           ))}
 
           {/* Render subfolders */}
-          {folder.children && folder.children.map((child) => (
+          {sortByName(folder.children).map((child) => (
             <FolderItem key={child.path} folder={child} level={level + 1} onClearRootDragOver={onClearRootDragOver} />
           ))}
         </div>

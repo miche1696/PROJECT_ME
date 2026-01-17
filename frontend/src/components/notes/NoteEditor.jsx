@@ -1,19 +1,53 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNotes } from '../../context/NotesContext';
 import { useApp } from '../../context/AppContext';
+import { useSelection } from '../../context/SelectionContext';
 import { transcriptionApi } from '../../api/transcription';
+import { useTextOperations } from '../../hooks/useTextOperations';
 import NoteToolbar from './NoteToolbar';
+import VoiceRecorder from './VoiceRecorder';
+import { SelectionToolbar } from '../selection';
 import './NoteEditor.css';
 
 const NoteEditor = () => {
   const { currentNote, updateNote } = useNotes();
   const { setError } = useApp();
+  const {
+    hasSelection,
+    isToolbarVisible,
+    toolbarPosition,
+    activeOperation,
+    operationStatus,
+    updateSelection,
+    clearSelection,
+    hideToolbar,
+  } = useSelection();
+
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const textareaRef = useRef(null);
   const saveTimeoutRef = useRef(null);
+  const lastMousePositionRef = useRef({ x: 0, y: 0 });
+
+  // Trigger save callback for useTextOperations
+  const triggerSave = useCallback(
+    (newContent) => {
+      if (currentNote) {
+        saveNote(newContent);
+      }
+    },
+    [currentNote]
+  );
+
+  // Text operations hook
+  const { executeOperation, getAvailableOperations } = useTextOperations(
+    content,
+    setContent,
+    textareaRef,
+    triggerSave
+  );
 
   // Load note content when current note changes
   useEffect(() => {
@@ -22,7 +56,9 @@ const NoteEditor = () => {
     } else {
       setContent('');
     }
-  }, [currentNote]);
+    // Clear selection when note changes
+    clearSelection();
+  }, [currentNote, clearSelection]);
 
   // Auto-save functionality (debounced)
   const handleContentChange = (e) => {
@@ -31,6 +67,11 @@ const NoteEditor = () => {
 
     // Store cursor position
     setCursorPosition(e.target.selectionStart);
+
+    // Clear selection when content changes (typing)
+    if (hasSelection) {
+      clearSelection();
+    }
 
     // Clear existing timeout
     if (saveTimeoutRef.current) {
@@ -58,6 +99,134 @@ const NoteEditor = () => {
     }
   };
 
+  // Get caret coordinates using mirror div technique
+  const getCaretCoordinates = useCallback((textarea, position) => {
+    // Create a mirror div with identical styling
+    const mirror = document.createElement('div');
+    const style = window.getComputedStyle(textarea);
+
+    // Copy all relevant styles that affect text layout
+    const styleProps = [
+      'font', 'fontSize', 'fontFamily', 'fontWeight', 'fontStyle',
+      'lineHeight', 'paddingTop', 'paddingLeft', 'paddingRight', 'paddingBottom',
+      'borderLeftWidth', 'borderTopWidth', 'borderRightWidth', 'borderBottomWidth',
+      'boxSizing', 'width', 'wordWrap', 'whiteSpace', 'letterSpacing',
+      'textIndent', 'textTransform', 'wordSpacing', 'textAlign'
+    ];
+
+    styleProps.forEach(prop => {
+      mirror.style[prop] = style[prop];
+    });
+
+    // Additional positioning styles
+    mirror.style.position = 'absolute';
+    mirror.style.visibility = 'hidden';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.wordWrap = 'break-word';
+    mirror.style.overflow = 'hidden';
+    mirror.style.height = 'auto';
+    mirror.style.top = '0';
+    mirror.style.left = '0';
+
+    // Get textarea dimensions and scroll
+    const textareaRect = textarea.getBoundingClientRect();
+    const scrollTop = textarea.scrollTop;
+    const scrollLeft = textarea.scrollLeft;
+
+    // Set mirror width to match textarea content width
+    const paddingLeft = parseFloat(style.paddingLeft) || 0;
+    const paddingRight = parseFloat(style.paddingRight) || 0;
+    mirror.style.width = `${textareaRect.width - paddingLeft - paddingRight}px`;
+
+    // Insert text up to caret position
+    const textBeforeCaret = content.substring(0, position);
+    mirror.textContent = textBeforeCaret;
+
+    // Create a marker span to measure caret position
+    const marker = document.createElement('span');
+    marker.textContent = '|';
+    mirror.appendChild(marker);
+
+    // Append to body temporarily
+    document.body.appendChild(mirror);
+
+    // Get marker position relative to mirror
+    const markerRect = marker.getBoundingClientRect();
+    const mirrorRect = mirror.getBoundingClientRect();
+
+    // Calculate position relative to textarea
+    const x = textareaRect.left + paddingLeft + (markerRect.left - mirrorRect.left) - scrollLeft;
+    const y = textareaRect.top + (markerRect.top - mirrorRect.top) - scrollTop;
+
+    // Clean up
+    document.body.removeChild(mirror);
+
+    return { x, y };
+  }, [content]);
+
+  // Handle text selection with position
+  const handleSelectionChange = useCallback((position) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const { selectionStart, selectionEnd, selectionDirection } = textarea;
+
+    if (selectionStart !== selectionEnd) {
+      const selectedText = content.substring(selectionStart, selectionEnd);
+
+      // Use provided position (from mouse) or calculate from caret (keyboard)
+      let toolbarPos;
+      if (position) {
+        // Mouse selection - use mouse coordinates (already the focus position)
+        toolbarPos = position;
+      } else {
+        // Keyboard selection - use FOCUS position (the moving cursor)
+        // If backward selection, focus is at selectionStart
+        // If forward selection, focus is at selectionEnd
+        const focusPosition = selectionDirection === 'backward' 
+          ? selectionStart 
+          : selectionEnd;
+        toolbarPos = getCaretCoordinates(textarea, focusPosition);
+      }
+
+      updateSelection(selectionStart, selectionEnd, selectedText, toolbarPos);
+    } else {
+      clearSelection();
+    }
+  }, [content, updateSelection, clearSelection, getCaretCoordinates]);
+
+  // Track mouse position
+  const handleMouseMove = useCallback((e) => {
+    lastMousePositionRef.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
+  // Handle mouse up to finalize selection
+  const handleMouseUp = useCallback((e) => {
+    // Store mouse position
+    lastMousePositionRef.current = { x: e.clientX, y: e.clientY };
+    
+    // Small delay to ensure selection is complete
+    setTimeout(() => {
+      // Add small offset to move toolbar higher (further from click point to avoid overlapping with text)
+      // ~0.5cm = ~15-20px depending on screen DPI
+      handleSelectionChange({ 
+        x: e.clientX, 
+        y: e.clientY - 15 
+      });
+    }, 10);
+  }, [handleSelectionChange]);
+
+  // Handle keyboard-based selection (Shift+arrows)
+  const handleKeyUp = useCallback(
+    (e) => {
+      if (e.shiftKey || e.key === 'Shift') {
+        // Keyboard selection - use caret position
+        handleSelectionChange(null);
+      }
+    },
+    [handleSelectionChange]
+  );
+
   // Manual save on Ctrl+S
   const handleKeyDown = (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -67,6 +236,18 @@ const NoteEditor = () => {
       }
     }
   };
+
+  // Handle operation selection from toolbar
+  const handleOperationSelect = useCallback(
+    async (operationId) => {
+      try {
+        await executeOperation(operationId);
+      } catch (error) {
+        setError(`Operation failed: ${error.message}`);
+      }
+    },
+    [executeOperation, setError]
+  );
 
   // Insert text at cursor position
   const insertTextAtCursor = (textToInsert) => {
@@ -95,6 +276,28 @@ const NoteEditor = () => {
     }
 
     return newCursorPos;
+  };
+
+  // Handle voice recording start - insert placeholder
+  const handleVoiceRecordingStart = (placeholder) => {
+    insertTextAtCursor(placeholder);
+  };
+
+  // Handle transcription complete - replace placeholder with text
+  const handleTranscriptionComplete = (transcribedText, placeholder) => {
+    if (placeholder) {
+      // Replace placeholder with transcribed text
+      setContent((prevContent) => {
+        const newContent = prevContent.replace(placeholder, transcribedText);
+        if (currentNote) {
+          saveNote(newContent);
+        }
+        return newContent;
+      });
+    } else {
+      // No placeholder, just insert at cursor
+      insertTextAtCursor(transcribedText);
+    }
   };
 
   // Handle drop events
@@ -200,20 +403,49 @@ const NoteEditor = () => {
     );
   }
 
+  // Get available operations for current selection
+  const availableOperations = hasSelection ? getAvailableOperations() : [];
+
   return (
     <div className="note-editor">
       <NoteToolbar note={currentNote} isSaving={isSaving} isTranscribing={isTranscribing} />
-      <textarea
-        ref={textareaRef}
-        className="editor-textarea"
-        value={content}
-        onChange={handleContentChange}
-        onKeyDown={handleKeyDown}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        placeholder="Start typing or drop a file here..."
-        spellCheck="true"
-      />
+      <div className="editor-content-container">
+        <textarea
+          ref={textareaRef}
+          className="editor-textarea"
+          value={content}
+          onChange={handleContentChange}
+          onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          placeholder="Start typing or drop a file here..."
+          spellCheck="true"
+        />
+
+        {/* Selection Toolbar */}
+        {hasSelection && isToolbarVisible && availableOperations.length > 0 && (
+          <SelectionToolbar
+            position={toolbarPosition}
+            operations={availableOperations}
+            onOperationSelect={handleOperationSelect}
+            isProcessing={operationStatus === 'pending'}
+            activeOperation={activeOperation}
+            onDismiss={hideToolbar}
+          />
+        )}
+
+        <VoiceRecorder
+          onRecordingStart={handleVoiceRecordingStart}
+          onTranscriptionComplete={handleTranscriptionComplete}
+          onTranscriptionStart={() => setIsTranscribing(true)}
+          onTranscriptionEnd={() => setIsTranscribing(false)}
+          onError={setError}
+          disabled={!currentNote}
+        />
+      </div>
     </div>
   );
 };

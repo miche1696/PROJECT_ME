@@ -40,6 +40,23 @@
   white-space: nowrap;
 }
 
+.folder-name-input {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  padding: 2px 4px;
+  border: 1px solid var(--accent-color);
+  border-radius: 4px;
+  outline: none;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.folder-item.editing {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
 .folder-count {
   font-size: 11px;
   color: var(--text-secondary);

@@ -1,0 +1,43 @@
+.operation-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.operation-button:hover:not(:disabled) {
+  background-color: var(--bg-secondary);
+}
+
+.operation-button:active:not(:disabled) {
+  background-color: var(--border-color);
+}
+
+.operation-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.operation-button.active {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.operation-icon {
+  font-size: 12px;
+  min-width: 16px;
+  text-align: center;
+}
+
+.operation-label {
+  font-weight: 500;
+}

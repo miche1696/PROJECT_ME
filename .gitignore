@@ -42,3 +42,8 @@ notes/*
 
 # Logs
 *.log
+
+# User data (notes and uploads)
+notes/*
+notes_backup/*
+uploads/*

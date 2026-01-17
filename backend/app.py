@@ -5,9 +5,11 @@ from services.file_service import FileService
 from services.note_service import NoteService
 from services.folder_service import FolderService
 from services.whisper_service import WhisperService
+from services.text_processing_service import TextProcessingService
 from api.notes import notes_bp
 from api.folders import folders_bp
 from api.transcription import transcription_bp
+from api.text_processing import text_processing_bp
 
 
 def create_app():
@@ -37,16 +39,22 @@ def create_app():
     print("Initializing Whisper service...")
     whisper_service = WhisperService(model_name=config.WHISPER_MODEL)
 
+    # Initialize text processing service
+    print("Initializing text processing service...")
+    text_processing_service = TextProcessingService(llm_client=None)
+
     # Store services in app config for access in routes
     app.config['FILE_SERVICE'] = file_service
     app.config['NOTE_SERVICE'] = note_service
     app.config['FOLDER_SERVICE'] = folder_service
     app.config['WHISPER_SERVICE'] = whisper_service
+    app.config['TEXT_PROCESSING_SERVICE'] = text_processing_service
 
     # Register blueprints
     app.register_blueprint(notes_bp, url_prefix='/api/notes')
     app.register_blueprint(folders_bp, url_prefix='/api/folders')
     app.register_blueprint(transcription_bp, url_prefix='/api/transcription')
+    app.register_blueprint(text_processing_bp, url_prefix='/api/text')
 
     # Health check endpoint
     @app.route('/api/health', methods=['GET'])
@@ -66,6 +74,7 @@ def create_app():
                 'notes': '/api/notes',
                 'folders': '/api/folders',
                 'transcription': '/api/transcription',
+                'text': '/api/text',
                 'health': '/api/health'
             }
         }), 200

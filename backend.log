@@ -33,3 +33,7 @@ Uploads directory: /Users/michelegionfriddo/Projects/PROJECT_ME/uploads
 127.0.0.1 - - [21/Jan/2026 20:22:22] "GET /api/folders HTTP/1.1" 200 -
 127.0.0.1 - - [21/Jan/2026 20:22:22] "GET /api/notes HTTP/1.1" 200 -
 127.0.0.1 - - [21/Jan/2026 20:22:22] "GET /api/folders HTTP/1.1" 200 -
+/opt/homebrew/Cellar/python@3.13/3.13.4/Frameworks/Python.framework/Versions/3.13/lib/python3.13/multiprocessing/resource_tracker.py:301: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown: {'/mp-4yj04g1i'}
+  warnings.warn(
+/opt/homebrew/Cellar/python@3.13/3.13.4/Frameworks/Python.framework/Versions/3.13/lib/python3.13/multiprocessing/resource_tracker.py:301: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown: {'/mp-zzc4pctv'}
+  warnings.warn(

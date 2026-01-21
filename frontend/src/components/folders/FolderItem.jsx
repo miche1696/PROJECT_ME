@@ -14,7 +14,7 @@ const sortByName = (items) => {
 const INVALID_CHARS = /[/\\:*?"<>|]/;
 
 const FolderItem = ({ folder, level = 0, onClearRootDragOver }) => {
-  const [isExpanded, setIsExpanded] = useState(level === 0); // Root folder expanded by default
+  const [isExpanded, setIsExpanded] = useState(false); // Root folder expanded by default
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isEditing, setIsEditing] = useState(false);

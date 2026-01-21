@@ -58,3 +58,10 @@ uploads/*
 .worktrees/
 .security-key
 logs/security/
+
+# Lock files
+*.lock
+
+# Logs
+backend.log
+frontend.log

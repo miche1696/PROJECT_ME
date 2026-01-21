@@ -40,9 +40,9 @@ export const NotesProvider = ({ children }) => {
   }, []);
 
   // Create note
-  const createNote = useCallback(async (name, folderPath = '', content = '') => {
+  const createNote = useCallback(async (name, folderPath = '', content = '', fileType = 'txt') => {
     try {
-      const note = await notesApi.createNote(name, folderPath, content);
+      const note = await notesApi.createNote(name, folderPath, content, fileType);
       await refreshFolders();
       await refreshNotes();
       return note;

@@ -7,11 +7,12 @@ from pathlib import Path
 class Note:
     """Represents a note in the system."""
     path: str  # Relative path from notes/ directory
-    name: str  # Filename without .txt extension
+    name: str  # Filename without extension
     content: str  # Note text content
     created_at: datetime
     modified_at: datetime
     size: int  # File size in bytes
+    file_type: str = 'txt'  # 'txt' or 'md'
 
     @classmethod
     def from_file(cls, file_path: Path, notes_dir: Path) -> 'Note':
@@ -25,6 +26,10 @@ class Note:
         # Get name without extension
         name = file_path.stem
 
+        # Get file type from extension
+        extension = file_path.suffix.lower()
+        file_type = 'md' if extension == '.md' else 'txt'
+
         # Read content
         try:
             content = file_path.read_text(encoding='utf-8')
@@ -37,7 +42,8 @@ class Note:
             content=content,
             created_at=datetime.fromtimestamp(stat.st_ctime),
             modified_at=datetime.fromtimestamp(stat.st_mtime),
-            size=stat.st_size
+            size=stat.st_size,
+            file_type=file_type
         )
 
     def to_dict(self, include_content: bool = True) -> dict:
@@ -47,7 +53,8 @@ class Note:
             'name': self.name,
             'created_at': self.created_at.isoformat(),
             'modified_at': self.modified_at.isoformat(),
-            'size': self.size
+            'size': self.size,
+            'file_type': self.file_type
         }
 
         if include_content:

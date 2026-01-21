@@ -27,13 +27,15 @@ export const notesApi = {
    * @param {string} name - Note name
    * @param {string} folder - Folder path (empty string for root)
    * @param {string} content - Initial content
+   * @param {string} fileType - File type ('txt' or 'md')
    * @returns {Promise} Promise with created note data
    */
-  createNote: async (name, folder = '', content = '') => {
+  createNote: async (name, folder = '', content = '', fileType = 'txt') => {
     const response = await apiClient.post('/notes', {
       name,
       folder,
       content,
+      file_type: fileType,
     });
     return response.data;
   },

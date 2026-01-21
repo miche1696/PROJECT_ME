@@ -12,35 +12,24 @@ Uploads directory: /Users/michelegionfriddo/Projects/PROJECT_ME/uploads
 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
  * Running on all addresses (0.0.0.0)
  * Running on http://127.0.0.1:5001
- * Running on http://10.2.0.2:5001
+ * Running on http://192.168.1.97:5001
 [33mPress CTRL+C to quit[0m
  * Restarting with stat
  * Debugger is active!
- * Debugger PIN: 375-688-261
-127.0.0.1 - - [17/Jan/2026 23:06:08] "GET /api/notes HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:08] "GET /api/notes HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:08] "GET /api/folders HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:08] "GET /api/folders HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:08] "GET /api/notes HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:08] "GET /api/folders HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:30] "GET /api/notes/97.%20Userlytics/TODO.txt HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:42] "OPTIONS /api/notes/97.%20Userlytics/TODO HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:42] "PUT /api/notes/97.%20Userlytics/TODO HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:42] "GET /api/notes HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:44] "PUT /api/notes/97.%20Userlytics/TODO HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:44] "GET /api/notes HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:47] "OPTIONS /api/notes/97.%20Userlytics/TODO HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:47] "PUT /api/notes/97.%20Userlytics/TODO HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:48] "GET /api/notes HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:52] "PUT /api/notes/97.%20Userlytics/TODO HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:52] "GET /api/notes HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:52] "PUT /api/notes/97.%20Userlytics/TODO HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:52] "GET /api/notes HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:55] "GET /api/notes/98.%20Kefi%20-%20Road%20to%20100k/00.%20TODO.txt HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:58] "OPTIONS /api/notes/98.%20Kefi%20-%20Road%20to%20100k/00.%20TODO HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:58] "PUT /api/notes/98.%20Kefi%20-%20Road%20to%20100k/00.%20TODO HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:06:58] "GET /api/notes HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:07:01] "PUT /api/notes/98.%20Kefi%20-%20Road%20to%20100k/00.%20TODO HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:07:01] "GET /api/notes HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:07:02] "PUT /api/notes/98.%20Kefi%20-%20Road%20to%20100k/00.%20TODO HTTP/1.1" 200 -
-127.0.0.1 - - [17/Jan/2026 23:07:02] "GET /api/notes HTTP/1.1" 200 -
+ * Debugger PIN: 780-155-859
+127.0.0.1 - - [21/Jan/2026 20:22:19] "GET /api/notes HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:19] "GET /api/folders HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:19] "GET /api/notes HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:19] "GET /api/folders HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:20] "GET /api/notes HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:20] "GET /api/folders HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:20] "GET /api/folders HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:20] "GET /api/notes HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:21] "GET /api/notes HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:21] "GET /api/folders HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:21] "GET /api/notes HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:21] "GET /api/folders HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:22] "GET /api/notes HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:22] "GET /api/folders HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:22] "GET /api/notes HTTP/1.1" 200 -
+127.0.0.1 - - [21/Jan/2026 20:22:22] "GET /api/folders HTTP/1.1" 200 -

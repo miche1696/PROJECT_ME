@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNotes } from '../../context/NotesContext';
 import { useApp } from '../../context/AppContext';
 import './Header.css';
@@ -8,12 +8,27 @@ const Header = () => {
   const { currentFolder, setError } = useApp();
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [showNoteDropdown, setShowNoteDropdown] = useState(false);
+  const dropdownRef = useRef(null);
 
-  const handleNewNote = async () => {
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowNoteDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleNewNote = async (fileType = 'txt') => {
     try {
       const timestamp = new Date().toISOString().split('T')[0];
       const noteName = `note-${timestamp}`;
-      await createNote(noteName, currentFolder, '');
+      await createNote(noteName, currentFolder, '', fileType);
+      setShowNoteDropdown(false);
     } catch (error) {
       setError('Failed to create note: ' + error.message);
     }
@@ -34,12 +49,30 @@ const Header = () => {
   return (
     <div className="header">
       <div className="header-title">
-        <h1>📝 Notes</h1>
+        <h1>Notes</h1>
       </div>
       <div className="header-actions">
-        <button className="btn-primary" onClick={handleNewNote}>
-          + New Note
-        </button>
+        <div className="new-note-dropdown" ref={dropdownRef}>
+          <button
+            className="btn-primary dropdown-trigger"
+            onClick={() => setShowNoteDropdown(!showNoteDropdown)}
+          >
+            + New Note
+            <span className="dropdown-arrow">{showNoteDropdown ? '▲' : '▼'}</span>
+          </button>
+          {showNoteDropdown && (
+            <div className="dropdown-menu">
+              <button className="dropdown-item" onClick={() => handleNewNote('txt')}>
+                <span className="dropdown-icon">📄</span>
+                Text Note (.txt)
+              </button>
+              <button className="dropdown-item" onClick={() => handleNewNote('md')}>
+                <span className="dropdown-icon">📝</span>
+                Markdown Note (.md)
+              </button>
+            </div>
+          )}
+        </div>
         <button className="btn-secondary" onClick={() => setShowNewFolderModal(true)}>
           + New Folder
         </button>

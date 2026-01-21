@@ -51,6 +51,26 @@ echo -e "${GREEN}║  Note-Taking App with Audio Transcription  ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════╝${NC}"
 echo ""
 
+# Create backup of notes folder
+echo -e "${BLUE}Creating backup of notes folder...${NC}"
+
+# Generate timestamp in format: YYYYMMDD_HHMMSS
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+BACKUP_DIR="notes_backup/notes_${TIMESTAMP}"
+
+# Create backup directory
+mkdir -p "$BACKUP_DIR"
+
+# Copy notes folder contents to backup
+if [ -d "notes" ]; then
+    cp -r notes/* "$BACKUP_DIR/" 2>/dev/null || true
+    echo -e "${GREEN}✓ Backup created: $BACKUP_DIR${NC}"
+else
+    echo -e "${YELLOW}Warning: notes directory not found, skipping backup${NC}"
+fi
+
+echo ""
+
 # Check if backend directory exists
 if [ ! -d "backend" ]; then
     echo -e "${RED}Error: backend directory not found${NC}"

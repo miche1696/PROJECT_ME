@@ -3,7 +3,7 @@ import { useNotes } from '../../context/NotesContext';
 import { useApp } from '../../context/AppContext';
 import './NoteToolbar.css';
 
-const NoteToolbar = ({ note, isSaving, isTranscribing }) => {
+const NoteToolbar = ({ note, isSaving, isTranscribing, isMarkdown, editorMode, onEditorModeChange }) => {
   const { renameNote } = useNotes();
   const { setError } = useApp();
   const [isEditing, setIsEditing] = useState(false);
@@ -85,8 +85,29 @@ const NoteToolbar = ({ note, isSaving, isTranscribing }) => {
             {note.name}
           </h2>
         )}
+        <span className={`file-type-badge ${isMarkdown ? 'markdown' : 'text'}`}>
+          {isMarkdown ? 'MD' : 'TXT'}
+        </span>
       </div>
       <div className="toolbar-right">
+        {isMarkdown && (
+          <div className="editor-mode-toggle">
+            <button
+              className={`mode-btn ${editorMode === 'render' ? 'active' : ''}`}
+              onClick={() => onEditorModeChange('render')}
+              title="WYSIWYG mode"
+            >
+              Render
+            </button>
+            <button
+              className={`mode-btn ${editorMode === 'source' ? 'active' : ''}`}
+              onClick={() => onEditorModeChange('source')}
+              title="Source mode"
+            >
+              Source
+            </button>
+          </div>
+        )}
         {isTranscribing && (
           <span className="status-indicator transcribing">🎙️ Transcribing...</span>
         )}

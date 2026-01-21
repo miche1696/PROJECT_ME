@@ -6,6 +6,7 @@ import { transcriptionApi } from '../../api/transcription';
 import { useTextOperations } from '../../hooks/useTextOperations';
 import NoteToolbar from './NoteToolbar';
 import VoiceRecorder from './VoiceRecorder';
+import MarkdownEditor from './MarkdownEditor';
 import { SelectionToolbar } from '../selection';
 import './NoteEditor.css';
 
@@ -27,9 +28,13 @@ const NoteEditor = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
+  const [editorMode, setEditorMode] = useState('render'); // 'render' (WYSIWYG) or 'source' (raw markdown)
   const textareaRef = useRef(null);
   const saveTimeoutRef = useRef(null);
   const lastMousePositionRef = useRef({ x: 0, y: 0 });
+
+  // Check if current note is markdown
+  const isMarkdown = currentNote?.file_type === 'md';
 
   // Trigger save callback for useTextOperations
   const triggerSave = useCallback(
@@ -85,6 +90,23 @@ const NoteEditor = () => {
       }
     }, 500); // 500ms debounce
   };
+
+  // Handle markdown editor changes
+  const handleMarkdownChange = useCallback((newContent) => {
+    setContent(newContent);
+
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Set new timeout for auto-save
+    saveTimeoutRef.current = setTimeout(() => {
+      if (currentNote) {
+        saveNote(newContent);
+      }
+    }, 500); // 500ms debounce
+  }, [currentNote]);
 
   const saveNote = async (contentToSave) => {
     if (!currentNote) return;
@@ -408,25 +430,40 @@ const NoteEditor = () => {
 
   return (
     <div className="note-editor">
-      <NoteToolbar note={currentNote} isSaving={isSaving} isTranscribing={isTranscribing} />
+      <NoteToolbar
+        note={currentNote}
+        isSaving={isSaving}
+        isTranscribing={isTranscribing}
+        isMarkdown={isMarkdown}
+        editorMode={editorMode}
+        onEditorModeChange={setEditorMode}
+      />
       <div className="editor-content-container">
-        <textarea
-          ref={textareaRef}
-          className="editor-textarea"
-          value={content}
-          onChange={handleContentChange}
-          onKeyDown={handleKeyDown}
-          onKeyUp={handleKeyUp}
-          onMouseUp={handleMouseUp}
-          onMouseMove={handleMouseMove}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          placeholder="Start typing or drop a file here..."
-          spellCheck="true"
-        />
+        {isMarkdown ? (
+          <MarkdownEditor
+            content={content}
+            onChange={handleMarkdownChange}
+            mode={editorMode}
+          />
+        ) : (
+          <textarea
+            ref={textareaRef}
+            className="editor-textarea"
+            value={content}
+            onChange={handleContentChange}
+            onKeyDown={handleKeyDown}
+            onKeyUp={handleKeyUp}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            placeholder="Start typing or drop a file here..."
+            spellCheck="true"
+          />
+        )}
 
-        {/* Selection Toolbar */}
-        {hasSelection && isToolbarVisible && availableOperations.length > 0 && (
+        {/* Selection Toolbar - only for text files */}
+        {!isMarkdown && hasSelection && isToolbarVisible && availableOperations.length > 0 && (
           <SelectionToolbar
             position={toolbarPosition}
             operations={availableOperations}

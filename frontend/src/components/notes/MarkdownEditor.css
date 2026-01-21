@@ -1,0 +1,215 @@
+.markdown-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.markdown-editor.source-mode {
+  padding: 0;
+}
+
+.markdown-editor.render-mode {
+  padding: 0;
+}
+
+/* Source mode textarea */
+.markdown-source-textarea {
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  background-color: var(--bg-primary, #ffffff);
+  color: var(--text-primary, #1a1a1a);
+}
+
+.markdown-source-textarea::placeholder {
+  color: var(--text-tertiary, #999);
+}
+
+/* MDXEditor container */
+.markdown-editor.render-mode [class*="_mdxeditor_"] {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* MDXEditor toolbar styling */
+.markdown-editor [class*="_toolbarRoot_"] {
+  background-color: var(--bg-secondary, #f5f5f5);
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  padding: 4px 8px;
+  flex-shrink: 0;
+}
+
+/* MDXEditor content area */
+.mdx-editor-content {
+  flex: 1;
+  padding: 16px;
+  outline: none;
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.mdx-editor-content:focus {
+  outline: none;
+}
+
+/* Headings */
+.mdx-editor-content h1 {
+  font-size: 2em;
+  font-weight: 700;
+  margin: 0.67em 0;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  padding-bottom: 0.3em;
+}
+
+.mdx-editor-content h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin: 0.83em 0;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  padding-bottom: 0.3em;
+}
+
+.mdx-editor-content h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin: 1em 0;
+}
+
+.mdx-editor-content h4 {
+  font-size: 1em;
+  font-weight: 600;
+  margin: 1.33em 0;
+}
+
+.mdx-editor-content h5 {
+  font-size: 0.875em;
+  font-weight: 600;
+  margin: 1.67em 0;
+}
+
+.mdx-editor-content h6 {
+  font-size: 0.85em;
+  font-weight: 600;
+  margin: 2.33em 0;
+  color: var(--text-secondary, #666);
+}
+
+/* Paragraphs */
+.mdx-editor-content p {
+  margin: 1em 0;
+}
+
+/* Lists */
+.mdx-editor-content ul,
+.mdx-editor-content ol {
+  padding-left: 2em;
+  margin: 1em 0;
+}
+
+.mdx-editor-content li {
+  margin: 0.25em 0;
+}
+
+/* Blockquotes */
+.mdx-editor-content blockquote {
+  border-left: 4px solid var(--accent-color, #0066cc);
+  padding-left: 1em;
+  margin: 1em 0;
+  color: var(--text-secondary, #666);
+  font-style: italic;
+}
+
+/* Code */
+.mdx-editor-content code {
+  background-color: var(--bg-tertiary, #f0f0f0);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  font-size: 0.9em;
+}
+
+.mdx-editor-content pre {
+  background-color: var(--bg-tertiary, #f6f8fa);
+  border-radius: 6px;
+  padding: 16px;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.mdx-editor-content pre code {
+  background-color: transparent;
+  padding: 0;
+  font-size: 0.85em;
+  line-height: 1.45;
+}
+
+/* Links */
+.mdx-editor-content a {
+  color: var(--accent-color, #0066cc);
+  text-decoration: none;
+}
+
+.mdx-editor-content a:hover {
+  text-decoration: underline;
+}
+
+/* Tables */
+.mdx-editor-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.mdx-editor-content th,
+.mdx-editor-content td {
+  border: 1px solid var(--border-color, #e0e0e0);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.mdx-editor-content th {
+  background-color: var(--bg-secondary, #f5f5f5);
+  font-weight: 600;
+}
+
+.mdx-editor-content tr:nth-child(even) {
+  background-color: var(--bg-secondary, #fafafa);
+}
+
+/* Horizontal rule */
+.mdx-editor-content hr {
+  border: none;
+  border-top: 1px solid var(--border-color, #e0e0e0);
+  margin: 2em 0;
+}
+
+/* Images */
+.mdx-editor-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Strong and emphasis */
+.mdx-editor-content strong {
+  font-weight: 600;
+}
+
+.mdx-editor-content em {
+  font-style: italic;
+}
+
+/* Task lists */
+.mdx-editor-content input[type="checkbox"] {
+  margin-right: 0.5em;
+}

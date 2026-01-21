@@ -66,9 +66,14 @@ def create_note():
 
         folder_path = data.get('folder', '')
         content = data.get('content', '')
+        file_type = data.get('file_type', 'txt')
+
+        # Validate file_type
+        if file_type not in ['txt', 'md']:
+            return jsonify({'error': 'Invalid file_type. Must be "txt" or "md"'}), 400
 
         # Create note
-        note = note_service.create_note(folder_path, name, content)
+        note = note_service.create_note(folder_path, name, content, file_type)
 
         return jsonify(note), 201
 

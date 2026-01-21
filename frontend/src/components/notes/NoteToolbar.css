@@ -10,6 +10,9 @@
 .toolbar-left {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--padding-sm);
 }
 
 .note-title {
@@ -75,4 +78,60 @@
   50% {
     opacity: 0.5;
   }
+}
+
+/* File type badge */
+.file-type-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.file-type-badge.text {
+  background-color: var(--bg-tertiary, #e0e0e0);
+  color: var(--text-secondary, #666);
+}
+
+.file-type-badge.markdown {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+/* Editor mode toggle */
+.editor-mode-toggle {
+  display: flex;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mode-btn {
+  padding: 4px 12px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  border: none;
+  background-color: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.mode-btn:first-child {
+  border-right: 1px solid var(--border-color);
+}
+
+.mode-btn:hover {
+  background-color: var(--bg-secondary);
+}
+
+.mode-btn.active {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.mode-btn.active:hover {
+  background-color: var(--accent-color);
 }

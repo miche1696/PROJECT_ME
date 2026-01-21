@@ -9,10 +9,39 @@ from models.folder import Folder
 class FileService:
     """Service for file system operations on notes and folders."""
 
+    SUPPORTED_EXTENSIONS = ['.txt', '.md']
+
     def __init__(self, notes_dir: Path):
         """Initialize file service with notes directory."""
         self.notes_dir = Path(notes_dir).resolve()
         self.notes_dir.mkdir(parents=True, exist_ok=True)
+
+    def _has_valid_extension(self, note_path: str) -> bool:
+        """Check if note path has a valid extension."""
+        return any(note_path.endswith(ext) for ext in self.SUPPORTED_EXTENSIONS)
+
+    def _resolve_note_path(self, note_path: str) -> str:
+        """
+        Resolve a note path to include the correct extension.
+        If path already has extension, returns it unchanged.
+        If no extension, finds which file actually exists (.txt or .md).
+        If neither exists, defaults to .txt for new files.
+        """
+        if self._has_valid_extension(note_path):
+            return note_path
+
+        # Check which extension exists
+        for ext in self.SUPPORTED_EXTENSIONS:
+            test_path = f"{note_path}{ext}"
+            try:
+                full_path = self._get_full_path(test_path)
+                if full_path.exists() and full_path.is_file():
+                    return test_path
+            except ValueError:
+                continue
+
+        # Default to .txt for new files
+        return f"{note_path}.txt"
 
     def validate_path(self, path: str) -> bool:
         """
@@ -67,7 +96,7 @@ class FileService:
         Read note content from file.
 
         Args:
-            note_path: Relative path to note (with or without .txt extension)
+            note_path: Relative path to note (with or without extension)
 
         Returns:
             Note content as string
@@ -76,8 +105,7 @@ class FileService:
             ValueError: If path is invalid
             FileNotFoundError: If note doesn't exist
         """
-        if not note_path.endswith('.txt'):
-            note_path = f"{note_path}.txt"
+        note_path = self._resolve_note_path(note_path)
 
         full_path = self._get_full_path(note_path)
 
@@ -91,14 +119,13 @@ class FileService:
         Write note content to file.
 
         Args:
-            note_path: Relative path to note (with or without .txt extension)
+            note_path: Relative path to note (with or without extension)
             content: Note content to write
 
         Raises:
             ValueError: If path is invalid
         """
-        if not note_path.endswith('.txt'):
-            note_path = f"{note_path}.txt"
+        note_path = self._resolve_note_path(note_path)
 
         full_path = self._get_full_path(note_path)
 
@@ -113,14 +140,13 @@ class FileService:
         Delete a note file.
 
         Args:
-            note_path: Relative path to note (with or without .txt extension)
+            note_path: Relative path to note (with or without extension)
 
         Raises:
             ValueError: If path is invalid
             FileNotFoundError: If note doesn't exist
         """
-        if not note_path.endswith('.txt'):
-            note_path = f"{note_path}.txt"
+        note_path = self._resolve_note_path(note_path)
 
         full_path = self._get_full_path(note_path)
 
@@ -144,8 +170,15 @@ class FileService:
             ValueError: If path is invalid or new name is invalid
             FileNotFoundError: If note doesn't exist
         """
-        if not old_path.endswith('.txt'):
-            old_path = f"{old_path}.txt"
+        # Resolve the path to find the actual file
+        old_path = self._resolve_note_path(old_path)
+
+        # Determine the extension from resolved path
+        original_ext = '.txt'
+        for ext in self.SUPPORTED_EXTENSIONS:
+            if old_path.endswith(ext):
+                original_ext = ext
+                break
 
         # Sanitize new name
         new_name = self._sanitize_filename(new_name)
@@ -157,8 +190,8 @@ class FileService:
         if not full_old_path.exists():
             raise FileNotFoundError(f"Note not found: {old_path}")
 
-        # Build new path in same directory
-        new_full_path = full_old_path.parent / f"{new_name}.txt"
+        # Build new path in same directory, preserving original extension
+        new_full_path = full_old_path.parent / f"{new_name}{original_ext}"
 
         # Ensure new path is also safe
         try:
@@ -190,8 +223,7 @@ class FileService:
             FileNotFoundError: If note doesn't exist or target folder doesn't exist
             FileExistsError: If note with same name already exists in target folder
         """
-        if not note_path.endswith('.txt'):
-            note_path = f"{note_path}.txt"
+        note_path = self._resolve_note_path(note_path)
 
         # Get full paths
         full_note_path = self._get_full_path(note_path)
@@ -230,8 +262,13 @@ class FileService:
         # Move the file
         shutil.move(str(full_note_path), str(new_full_path))
 
-        # Return new relative path
-        return str(new_full_path.relative_to(self.notes_dir)).replace('\\', '/').replace('.txt', '')
+        # Return new relative path (without extension)
+        result = str(new_full_path.relative_to(self.notes_dir)).replace('\\', '/')
+        for ext in self.SUPPORTED_EXTENSIONS:
+            if result.endswith(ext):
+                result = result[:-len(ext)]
+                break
+        return result
 
     def list_notes(self, folder_path: str = "") -> List[dict]:
         """
@@ -256,14 +293,15 @@ class FileService:
             raise ValueError(f"Path is not a folder: {folder_path}")
 
         notes = []
-        for file_path in full_path.glob('*.txt'):
-            if file_path.is_file():
-                try:
-                    note = Note.from_file(file_path, self.notes_dir)
-                    notes.append(note.to_dict(include_content=False))
-                except Exception:
-                    # Skip files that can't be read
-                    continue
+        for ext in self.SUPPORTED_EXTENSIONS:
+            for file_path in full_path.glob(f'*{ext}'):
+                if file_path.is_file():
+                    try:
+                        note = Note.from_file(file_path, self.notes_dir)
+                        notes.append(note.to_dict(include_content=False))
+                    except Exception:
+                        # Skip files that can't be read
+                        continue
 
         # Sort by modified date (newest first)
         notes.sort(key=lambda n: n['modified_at'], reverse=True)
@@ -279,13 +317,14 @@ class FileService:
         """
         notes = []
 
-        for file_path in self.notes_dir.rglob('*.txt'):
-            if file_path.is_file():
-                try:
-                    note = Note.from_file(file_path, self.notes_dir)
-                    notes.append(note.to_dict(include_content=False))
-                except Exception:
-                    continue
+        for ext in self.SUPPORTED_EXTENSIONS:
+            for file_path in self.notes_dir.rglob(f'*{ext}'):
+                if file_path.is_file():
+                    try:
+                        note = Note.from_file(file_path, self.notes_dir)
+                        notes.append(note.to_dict(include_content=False))
+                    except Exception:
+                        continue
 
         # Sort by modified date (newest first)
         notes.sort(key=lambda n: n['modified_at'], reverse=True)
@@ -517,13 +556,14 @@ class FileService:
 
         # Get notes in this folder
         notes = []
-        for file_path in path.glob('*.txt'):
-            if file_path.is_file():
-                try:
-                    note = Note.from_file(file_path, self.notes_dir)
-                    notes.append(note.to_dict(include_content=False))
-                except Exception:
-                    continue
+        for ext in self.SUPPORTED_EXTENSIONS:
+            for file_path in path.glob(f'*{ext}'):
+                if file_path.is_file():
+                    try:
+                        note = Note.from_file(file_path, self.notes_dir)
+                        notes.append(note.to_dict(include_content=False))
+                    except Exception:
+                        continue
 
         # Sort notes by modified date
         notes.sort(key=lambda n: n['modified_at'], reverse=True)
@@ -569,8 +609,14 @@ class FileService:
     def note_exists(self, note_path: str) -> bool:
         """Check if a note exists."""
         try:
-            if not note_path.endswith('.txt'):
-                note_path = f"{note_path}.txt"
+            # Check all supported extensions if no extension provided
+            if not self._has_valid_extension(note_path):
+                for ext in self.SUPPORTED_EXTENSIONS:
+                    test_path = f"{note_path}{ext}"
+                    full_path = self._get_full_path(test_path)
+                    if full_path.exists() and full_path.is_file():
+                        return True
+                return False
             full_path = self._get_full_path(note_path)
             return full_path.exists() and full_path.is_file()
         except ValueError:

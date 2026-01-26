@@ -29,9 +29,14 @@ const NoteEditor = () => {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [editorMode, setEditorMode] = useState('render'); // 'render' (WYSIWYG) or 'source' (raw markdown)
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
   const textareaRef = useRef(null);
+  const markdownEditorRef = useRef(null);
+  const markdownDropZoneRef = useRef(null);
   const saveTimeoutRef = useRef(null);
   const lastMousePositionRef = useRef({ x: 0, y: 0 });
+  const isInitializingRef = useRef(false);
+  const currentNotePathRef = useRef(null);
 
   // Check if current note is markdown
   const isMarkdown = currentNote?.file_type === 'md';
@@ -56,6 +61,25 @@ const NoteEditor = () => {
 
   // Load note content when current note changes
   useEffect(() => {
+    // CRITICAL: Cancel any pending save from the previous note
+    // This prevents the race condition where old content gets saved to the new note
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
+    // Mark that we're initializing a new note - skip onChange calls during this time
+    // This prevents MDXEditor initialization from triggering saves
+    const noteChanged = currentNote?.path !== currentNotePathRef.current;
+    if (noteChanged) {
+      isInitializingRef.current = true;
+      currentNotePathRef.current = currentNote?.path || null;
+      // Allow initialization to complete before accepting onChange calls
+      setTimeout(() => {
+        isInitializingRef.current = false;
+      }, 100);
+    }
+
     if (currentNote) {
       setContent(currentNote.content || '');
     } else {
@@ -64,6 +88,16 @@ const NoteEditor = () => {
     // Clear selection when note changes
     clearSelection();
   }, [currentNote, clearSelection]);
+
+  // Cleanup: cancel any pending save on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
 
   // Auto-save functionality (debounced)
   const handleContentChange = (e) => {
@@ -83,9 +117,13 @@ const NoteEditor = () => {
       clearTimeout(saveTimeoutRef.current);
     }
 
+    // Capture the note path at the time of the change to prevent race conditions
+    const notePathAtChange = currentNote?.path;
+
     // Set new timeout for auto-save
     saveTimeoutRef.current = setTimeout(() => {
-      if (currentNote) {
+      // Verify the note hasn't changed before saving
+      if (currentNote && currentNote.path === notePathAtChange) {
         saveNote(newContent);
       }
     }, 500); // 500ms debounce
@@ -93,6 +131,12 @@ const NoteEditor = () => {
 
   // Handle markdown editor changes
   const handleMarkdownChange = useCallback((newContent) => {
+    // Skip onChange calls during note initialization (e.g., MDXEditor mounting)
+    // This prevents accidental saves of stale or intermediate content
+    if (isInitializingRef.current) {
+      return;
+    }
+
     setContent(newContent);
 
     // Clear existing timeout
@@ -100,9 +144,18 @@ const NoteEditor = () => {
       clearTimeout(saveTimeoutRef.current);
     }
 
+    // Capture the note path at the time of the change to prevent race conditions
+    const notePathAtChange = currentNote?.path;
+
     // Set new timeout for auto-save
     saveTimeoutRef.current = setTimeout(() => {
-      if (currentNote) {
+      // Double-check we're not in initialization and note hasn't changed
+      if (isInitializingRef.current) {
+        return;
+      }
+      // Use ref for reliable comparison - the closure's currentNote might be stale
+      // Only save if we're still on the same note that triggered the change
+      if (currentNotePathRef.current === notePathAtChange) {
         saveNote(newContent);
       }
     }, 500); // 500ms debounce
@@ -302,23 +355,44 @@ const NoteEditor = () => {
 
   // Handle voice recording start - insert placeholder
   const handleVoiceRecordingStart = (placeholder) => {
-    insertTextAtCursor(placeholder);
+    if (isMarkdown && markdownEditorRef.current) {
+      markdownEditorRef.current.insertText(placeholder);
+    } else {
+      insertTextAtCursor(placeholder);
+    }
   };
 
   // Handle transcription complete - replace placeholder with text
   const handleTranscriptionComplete = (transcribedText, placeholder) => {
     if (placeholder) {
-      // Replace placeholder with transcribed text
-      setContent((prevContent) => {
-        const newContent = prevContent.replace(placeholder, transcribedText);
-        if (currentNote) {
-          saveNote(newContent);
-        }
-        return newContent;
-      });
+      if (isMarkdown && markdownEditorRef.current) {
+        // For markdown, use the replaceText method
+        markdownEditorRef.current.replaceText(placeholder, transcribedText);
+        // Also update content state and save
+        setContent((prevContent) => {
+          const newContent = prevContent.replace(placeholder, transcribedText);
+          if (currentNote) {
+            saveNote(newContent);
+          }
+          return newContent;
+        });
+      } else {
+        // Replace placeholder with transcribed text
+        setContent((prevContent) => {
+          const newContent = prevContent.replace(placeholder, transcribedText);
+          if (currentNote) {
+            saveNote(newContent);
+          }
+          return newContent;
+        });
+      }
     } else {
       // No placeholder, just insert at cursor
-      insertTextAtCursor(transcribedText);
+      if (isMarkdown && markdownEditorRef.current) {
+        markdownEditorRef.current.insertText(transcribedText);
+      } else {
+        insertTextAtCursor(transcribedText);
+      }
     }
   };
 
@@ -327,18 +401,31 @@ const NoteEditor = () => {
     e.preventDefault();
     e.stopPropagation();
 
+    // Reset dragging state
+    setIsDraggingOver(false);
+
     const files = Array.from(e.dataTransfer.files);
     if (files.length === 0) return;
 
-    // Get drop position (cursor position at drop)
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.focus();
-      // Set cursor to drop position
-      const pos = getCursorPositionFromEvent(e, textarea);
-      textarea.selectionStart = pos;
-      textarea.selectionEnd = pos;
-      setCursorPosition(pos);
+    // Capture note path at drop time to avoid stale closure during long transcriptions
+    const notePathAtDrop = currentNote?.path;
+    const isMarkdownAtDrop = isMarkdown;
+
+    // For txt files: Use the existing cursor position (where user clicked before dragging)
+    // Don't try to calculate from drop coordinates as it's inaccurate
+    // For md files: Capture cursor position before overlay interaction
+    let savedCursorPosition = cursorPosition;
+
+    if (!isMarkdown) {
+      const textarea = textareaRef.current;
+      if (textarea) {
+        // Save the current cursor position before any focus changes
+        savedCursorPosition = textarea.selectionStart;
+        textarea.focus();
+        // Restore cursor position
+        textarea.selectionStart = savedCursorPosition;
+        textarea.selectionEnd = savedCursorPosition;
+      }
     }
 
     for (const file of files) {
@@ -346,13 +433,43 @@ const NoteEditor = () => {
         // Handle text files
         if (file.name.endsWith('.txt')) {
           const textContent = await file.text();
-          insertTextAtCursor(textContent);
+          if (isMarkdownAtDrop && markdownEditorRef.current) {
+            // insertText will call onChange which updates content state
+            markdownEditorRef.current.insertText(textContent);
+            // Save after a short delay to allow onChange to propagate
+            setTimeout(() => {
+              if (notePathAtDrop) {
+                const latestContent = markdownEditorRef.current?.getContent() || content;
+                updateNote(notePathAtDrop, latestContent).catch((err) => {
+                  setError('Failed to save: ' + err.message);
+                });
+              }
+            }, 100);
+          } else {
+            insertTextAtCursor(textContent);
+          }
         }
         // Handle audio files
         else if (file.type.startsWith('audio/') || /\.(mp3|wav|m4a|ogg|flac|webm)$/i.test(file.name)) {
           // Insert placeholder
           const placeholder = `[🎙️ Transcribing...]`;
-          const placeholderPos = insertTextAtCursor(placeholder);
+
+          if (isMarkdownAtDrop && markdownEditorRef.current) {
+            // insertText will call onChange which updates content state
+            markdownEditorRef.current.insertText(placeholder);
+            // Save after a short delay to allow onChange to propagate
+            setTimeout(() => {
+              if (notePathAtDrop) {
+                // Get the latest content from the editor
+                const latestContent = markdownEditorRef.current?.getContent() || content;
+                updateNote(notePathAtDrop, latestContent).catch((err) => {
+                  console.error('Failed to save placeholder:', err);
+                });
+              }
+            }, 100);
+          } else {
+            insertTextAtCursor(placeholder);
+          }
 
           setIsTranscribing(true);
 
@@ -361,18 +478,31 @@ const NoteEditor = () => {
             const result = await transcriptionApi.transcribeAudio(file);
 
             // Replace placeholder with transcribed text
+            // Use captured notePathAtDrop to avoid stale closure issues
             setContent((prevContent) => {
               const newContent = prevContent.replace(placeholder, result.text);
-              if (currentNote) {
-                saveNote(newContent);
+              // Save using captured path, not current note reference
+              if (notePathAtDrop) {
+                updateNote(notePathAtDrop, newContent).catch((err) => {
+                  setError('Failed to save transcription: ' + err.message);
+                });
               }
               return newContent;
             });
+
+            // Also update MDXEditor if still on markdown
+            if (isMarkdownAtDrop && markdownEditorRef.current) {
+              markdownEditorRef.current.replaceText(placeholder, result.text);
+            }
           } catch (transcriptionError) {
             // Replace placeholder with error message
+            const errorText = `[Error transcribing audio]`;
             setContent((prevContent) =>
-              prevContent.replace(placeholder, `[Error transcribing audio]`)
+              prevContent.replace(placeholder, errorText)
             );
+            if (isMarkdownAtDrop && markdownEditorRef.current) {
+              markdownEditorRef.current.replaceText(placeholder, errorText);
+            }
             setError('Transcription failed: ' + transcriptionError.message);
           } finally {
             setIsTranscribing(false);
@@ -413,6 +543,23 @@ const NoteEditor = () => {
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    // Enable drop visual feedback
+    e.dataTransfer.dropEffect = 'copy';
+    if (isMarkdown && !isDraggingOver) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set to false if we're leaving the container entirely
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+      setIsDraggingOver(false);
+    }
   };
 
   if (!currentNote) {
@@ -438,13 +585,38 @@ const NoteEditor = () => {
         editorMode={editorMode}
         onEditorModeChange={setEditorMode}
       />
-      <div className="editor-content-container">
+      <div
+        className="editor-content-container"
+        onDragOver={isMarkdown ? handleDragOver : undefined}
+        onDragLeave={isMarkdown ? handleDragLeave : undefined}
+      >
         {isMarkdown ? (
-          <MarkdownEditor
-            content={content}
-            onChange={handleMarkdownChange}
-            mode={editorMode}
-          />
+          <div
+            ref={markdownDropZoneRef}
+            className="markdown-drop-zone"
+          >
+            <MarkdownEditor
+              key={currentNote?.path}
+              ref={markdownEditorRef}
+              initialContent={currentNote?.content || ''}
+              content={content}
+              onChange={handleMarkdownChange}
+              mode={editorMode}
+            />
+            {/* Drop overlay - captures drop events before MDXEditor */}
+            {isDraggingOver && (
+              <div
+                className="markdown-drop-overlay"
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+              >
+                <div className="drop-overlay-content">
+                  <span>Drop audio file to transcribe</span>
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <textarea
             ref={textareaRef}

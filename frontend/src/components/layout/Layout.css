@@ -9,6 +9,7 @@
 .layout-content {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -24,6 +25,7 @@
 
 .layout-editor {
   flex: 1;
+  min-height: 0;
   background-color: var(--editor-bg);
   display: flex;
   flex-direction: column;

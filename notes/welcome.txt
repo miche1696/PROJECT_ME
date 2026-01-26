@@ -7,7 +7,7 @@ Features:
 - Plain text editing with standard shortcuts (Ctrl+C, Ctrl+V, Ctrl+Z)
 - Drag and drop text files to create notes or insert content
 - Drag and drop audio files for instant transcription using Whisper
-- Nested folder organization
+- nested folder organization
 
 Get started by:
 1. Creating a new folder using the "New Folder" button

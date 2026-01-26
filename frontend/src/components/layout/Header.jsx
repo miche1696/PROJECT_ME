@@ -25,8 +25,10 @@ const Header = () => {
 
   const handleNewNote = async (fileType = 'txt') => {
     try {
-      const timestamp = new Date().toISOString().split('T')[0];
-      const noteName = `note-${timestamp}`;
+      const now = new Date();
+      const date = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const time = now.toTimeString().slice(0, 8).replace(/:/g, '');
+      const noteName = `${date}-${time} - New note`;
       await createNote(noteName, currentFolder, '', fileType);
       setShowNoteDropdown(false);
     } catch (error) {

@@ -71,16 +71,21 @@ export const NotesProvider = ({ children }) => {
   const deleteNote = useCallback(async (notePath) => {
     try {
       await notesApi.deleteNote(notePath);
-      if (currentNote && currentNote.path === notePath) {
-        setCurrentNote(null);
-      }
+      // Clear current note if it was the deleted one
+      // Compare paths by stripping extensions since folder tree paths have extensions
+      // but currentNote.path (from getNote) does not
+      const stripExtension = (p) => p?.replace(/\.(txt|md)$/, '') || '';
+      setCurrentNote(prev => {
+        if (!prev) return null;
+        return stripExtension(prev.path) === stripExtension(notePath) ? null : prev;
+      });
       await refreshFolders();
       await refreshNotes();
     } catch (error) {
       console.error('Error deleting note:', error);
       throw error;
     }
-  }, [currentNote, refreshFolders, refreshNotes]);
+  }, [refreshFolders, refreshNotes]);
 
   // Rename note
   const renameNote = useCallback(async (notePath, newName) => {
@@ -156,6 +161,13 @@ export const NotesProvider = ({ children }) => {
   const deleteFolder = useCallback(async (folderPath, recursive = false) => {
     try {
       await foldersApi.deleteFolder(folderPath, recursive);
+      // Clear current note if it was inside the deleted folder
+      setCurrentNote(prev => {
+        if (prev && prev.path && prev.path.startsWith(folderPath + '/')) {
+          return null;
+        }
+        return prev;
+      });
       await refreshFolders();
       await refreshNotes();
     } catch (error) {

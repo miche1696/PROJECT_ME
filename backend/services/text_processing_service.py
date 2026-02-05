@@ -8,6 +8,9 @@ Follows the same service pattern as WhisperService.
 import re
 from typing import Optional, Dict, Any
 
+# TODO : GENERAL TODO : Understand how to make concurrent requests work. Multiple users editing the same note at the same time. 
+# TODO : PLUS Registering audios/calling llms is async. So that you can continue work on other notes (calling the registering function or another llm) in parallel while the one before is still executing/waiting for answer.
+
 
 class TextProcessingService:
     """Service for text transformation operations."""
@@ -26,6 +29,7 @@ class TextProcessingService:
             'reorder-list': self.reorder_list,
             'summarize': self.summarize,
             'custom-prompt': self.custom_prompt,
+            'modify': self.modify_selection,
         }
         print("TextProcessingService initialized")
         if llm_client:
@@ -66,7 +70,7 @@ class TextProcessingService:
             'result_length': len(result),
         }
 
-    def clean_transcription(self, text: str, options: Dict) -> str:
+    def clean_transcription(self, text: str, options: Dict) -> str: # TODO : Useless, delete.
         """
         Clean up transcribed text.
 
@@ -218,6 +222,35 @@ class TextProcessingService:
         # return self.llm_client.complete(full_prompt)
         return text
 
+    def modify_selection(self, text: str, options: Dict) -> str:
+        """
+        Modify selected text using an LLM instruction with surrounding context.
+
+        Args:
+            text: Selected text to process
+            options:
+                - instruction: User instruction for modification
+                - before: Up to 200 chars before selection
+                - after: Up to 200 chars after selection
+
+        Returns:
+            LLM response (replacement markdown)
+        """
+        if not self.llm_client:
+            raise NotImplementedError(
+                "Modify operation requires LLM integration. "
+                "Configure an LLM client to enable this feature."
+            )
+
+        instruction = (options.get("instruction") or "").strip()
+        if not instruction:
+            raise ValueError("Modify operation requires 'instruction' in options")
+
+        before = options.get("before", "")
+        after = options.get("after", "")
+
+        return self.llm_client.modify_selection(instruction, text, before, after)
+
     def get_available_operations(self) -> list:
         """
         Get list of available operation IDs.
@@ -236,7 +269,7 @@ class TextProcessingService:
         """
         info = []
         for op_id in self.operations:
-            requires_llm = op_id in ['summarize', 'custom-prompt']
+            requires_llm = op_id in ['summarize', 'custom-prompt', 'modify']
             available = not requires_llm or self.llm_client is not None
 
             info.append({

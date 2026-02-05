@@ -92,11 +92,23 @@ cd backend
 # Check if virtual environment exists
 if [ ! -d "venv" ]; then
     echo -e "${YELLOW}Virtual environment not found. Creating...${NC}"
-    python3 -m venv venv
+    if command -v python3.11 >/dev/null 2>&1; then
+        python3.11 -m venv venv
+    else
+        python3 -m venv venv
+    fi
 fi
 
-# Activate virtual environment and start Flask
+# Validate Python version inside venv (Whisper/Torch need <=3.11)
 source venv/bin/activate
+PYTHON_VERSION=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+if [ "$PYTHON_VERSION" != "3.11" ] && [ "$PYTHON_VERSION" != "3.10" ]; then
+    echo -e "${RED}Error: backend venv uses Python ${PYTHON_VERSION}.${NC}"
+    echo -e "${YELLOW}Please recreate backend/venv with Python 3.11 or 3.10.${NC}"
+    echo -e "${YELLOW}Example:${NC} /opt/homebrew/bin/python3.11 -m venv backend/venv${NC}"
+    exit 1
+fi
+# Start Flask
 python app.py > ../backend.log 2>&1 &
 BACKEND_PID=$!
 

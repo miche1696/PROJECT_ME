@@ -63,6 +63,18 @@ def transcribe_audio():
             # Transcribe audio
             result = whisper_service.transcribe_audio(str(temp_path))
 
+            trace_logger = current_app.config.get('TRACE_LOGGER')
+            if trace_logger:
+                trace_logger.write(
+                    "transcription.complete",
+                    data={
+                        "filename": audio_file.filename,
+                        "language": result.get('language'),
+                        "duration": result.get('duration'),
+                        "text": result.get('text'),
+                    },
+                )
+
             # Clean up temp file
             whisper_service.cleanup_temp_file(str(temp_path))
 

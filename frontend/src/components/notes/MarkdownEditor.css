@@ -23,9 +23,69 @@
   overflow-y: auto;
 }
 
+/* Source editor container with line numbers */
+.source-editor-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Line numbers wrapper - fixed on the left */
+.line-numbers-wrapper {
+  position: relative;
+  flex-shrink: 0;
+  width: 50px;
+  background-color: var(--bg-secondary, #f8f9fa);
+  border-right: 1px solid var(--border-color, #e0e0e0);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Line numbers gutter - VS Code style */
+.line-numbers-gutter {
+  padding-top: 16px;
+  will-change: transform;
+}
+
+/* Hidden mirror div for measuring line heights */
+.line-mirror {
+  position: fixed;
+  top: 0;
+  left: -9999px;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.line-number {
+  min-height: 22.4px; /* matches line-height: 1.6 * font-size: 14px */
+  padding-right: 16px;
+  padding-left: 8px;
+  text-align: right;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  font-size: 12px;
+  line-height: 22.4px; /* matches textarea line height exactly */
+  color: var(--text-tertiary, #6e7681);
+  box-sizing: border-box;
+}
+
+.line-number:hover {
+  color: var(--text-secondary, #57606a);
+}
+
 /* Source mode textarea */
 .markdown-source-textarea {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   height: 100%;
   padding: 16px;
   border: none;
@@ -36,6 +96,10 @@
   line-height: 1.6;
   background-color: var(--bg-primary, #ffffff);
   color: var(--text-primary, #1a1a1a);
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  tab-size: 4;
 }
 
 .markdown-source-textarea::placeholder {

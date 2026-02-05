@@ -5,7 +5,7 @@ import {
   trimWhitespaceOperation,
 } from './local';
 import {
-  cleanTranscriptionOperation,
+  modifySelectionOperation,
   reorderListOperation,
   summarizeOperation,
 } from './backend';
@@ -16,7 +16,7 @@ operationRegistry.register(lowercaseOperation);
 operationRegistry.register(trimWhitespaceOperation);
 
 // Register all backend operations
-operationRegistry.register(cleanTranscriptionOperation);
+operationRegistry.register(modifySelectionOperation);
 operationRegistry.register(reorderListOperation);
 operationRegistry.register(summarizeOperation);
 

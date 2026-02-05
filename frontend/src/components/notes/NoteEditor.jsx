@@ -14,6 +14,9 @@ const NoteEditor = () => {
   const { currentNote, updateNote } = useNotes();
   const { setError } = useApp();
   const {
+    selectedText,
+    selectionStart,
+    selectionEnd,
     hasSelection,
     isToolbarVisible,
     toolbarPosition,
@@ -51,12 +54,43 @@ const NoteEditor = () => {
     [currentNote]
   );
 
-  // Text operations hook
+  // Get the active textarea ref (either plain text or markdown source mode)
+  const getActiveTextareaRef = useCallback(() => {
+    if (isMarkdown) {
+      if (editorMode === 'source' && markdownEditorRef.current) {
+        return markdownEditorRef.current.getTextareaRef();
+      }
+      return null;
+    }
+    return textareaRef;
+  }, [isMarkdown, editorMode]);
+
+  // Text operations hook - use a wrapper ref that points to the active textarea
+  const activeTextareaRef = useRef(null);
+
+  // Keep the active ref updated
+  useEffect(() => {
+    const ref = getActiveTextareaRef();
+    activeTextareaRef.current = ref?.current || null;
+  }, [getActiveTextareaRef, editorMode]);
+
+  const replaceSelectionInRender = useCallback(
+    async (replacement) => {
+      if (!isMarkdown || editorMode !== 'render' || !markdownEditorRef.current) {
+        return;
+      }
+      markdownEditorRef.current.restoreRenderSelection?.();
+      markdownEditorRef.current.insertText(replacement, { preserveSelection: true });
+    },
+    [isMarkdown, editorMode]
+  );
+
   const { executeOperation, getAvailableOperations } = useTextOperations(
     content,
     setContent,
-    textareaRef,
-    triggerSave
+    getActiveTextareaRef(),
+    triggerSave,
+    isMarkdown && editorMode === 'render' ? replaceSelectionInRender : null
   );
 
   // Load note content when current note changes
@@ -97,6 +131,11 @@ const NoteEditor = () => {
       }
     };
   }, []);
+
+  // Clear selection when editor mode changes
+  useEffect(() => {
+    clearSelection();
+  }, [editorMode, clearSelection]);
 
 
   // Auto-save functionality (debounced)
@@ -239,7 +278,7 @@ const NoteEditor = () => {
     return { x, y };
   }, [content]);
 
-  // Handle text selection with position
+  // Handle text selection with position (for plain text editor)
   const handleSelectionChange = useCallback((position) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -258,8 +297,8 @@ const NoteEditor = () => {
         // Keyboard selection - use FOCUS position (the moving cursor)
         // If backward selection, focus is at selectionStart
         // If forward selection, focus is at selectionEnd
-        const focusPosition = selectionDirection === 'backward' 
-          ? selectionStart 
+        const focusPosition = selectionDirection === 'backward'
+          ? selectionStart
           : selectionEnd;
         toolbarPos = getCaretCoordinates(textarea, focusPosition);
       }
@@ -269,6 +308,44 @@ const NoteEditor = () => {
       clearSelection();
     }
   }, [content, updateSelection, clearSelection, getCaretCoordinates]);
+
+  // Handle markdown source mode selection
+  const handleMarkdownSourceSelection = useCallback((e, textarea) => {
+    if (!textarea) return;
+
+    const { selectionStart, selectionEnd, selectionDirection } = textarea;
+
+    if (selectionStart !== selectionEnd) {
+      const selectedText = content.substring(selectionStart, selectionEnd);
+
+      // Use provided position (from mouse) or calculate from caret (keyboard)
+      let toolbarPos;
+      if (e.type === 'mouseup') {
+        // Mouse selection - use mouse coordinates with offset
+        toolbarPos = { x: e.clientX, y: e.clientY - 15 };
+      } else {
+        // Keyboard selection - use FOCUS position (the moving cursor)
+        const focusPosition = selectionDirection === 'backward'
+          ? selectionStart
+          : selectionEnd;
+        toolbarPos = getCaretCoordinates(textarea, focusPosition);
+      }
+
+      updateSelection(selectionStart, selectionEnd, selectedText, toolbarPos);
+    } else {
+      clearSelection();
+    }
+  }, [content, updateSelection, clearSelection, getCaretCoordinates]);
+
+  const handleMarkdownRenderSelection = useCallback((info) => {
+    if (!info || !info.text) {
+      clearSelection();
+      return;
+    }
+
+    const position = info.position || lastMousePositionRef.current;
+    updateSelection(0, info.text.length, info.text, position);
+  }, [updateSelection, clearSelection]);
 
   // Track mouse position
   const handleMouseMove = useCallback((e) => {
@@ -314,14 +391,52 @@ const NoteEditor = () => {
 
   // Handle operation selection from toolbar
   const handleOperationSelect = useCallback(
-    async (operationId) => {
+    async (operationId, options = {}) => {
       try {
-        await executeOperation(operationId);
+        let mergedOptions = options;
+        if (operationId === 'modify') {
+          const totalLength = content.length;
+          let start = selectionStart;
+          let end = selectionEnd;
+
+          let canUseContext = true;
+          if (isMarkdown && editorMode === 'render') {
+            const matchIndex = selectedText ? content.indexOf(selectedText) : -1;
+            if (matchIndex !== -1) {
+              start = matchIndex;
+              end = matchIndex + selectedText.length;
+            } else {
+              canUseContext = false;
+            }
+          }
+
+          const beforeStart = Math.max(0, start - 200);
+          const afterEnd = Math.min(totalLength, end + 200);
+          const before = canUseContext ? content.substring(beforeStart, start) : '';
+          const after = canUseContext ? content.substring(end, afterEnd) : '';
+
+          mergedOptions = {
+            ...options,
+            before,
+            after,
+          };
+        }
+
+        await executeOperation(operationId, mergedOptions);
       } catch (error) {
         setError(`Operation failed: ${error.message}`);
       }
     },
-    [executeOperation, setError]
+    [
+      executeOperation,
+      setError,
+      content,
+      selectionStart,
+      selectionEnd,
+      selectedText,
+      isMarkdown,
+      editorMode,
+    ]
   );
 
   // Insert text at cursor position
@@ -353,6 +468,15 @@ const NoteEditor = () => {
     return newCursorPos;
   };
 
+  const replacePlaceholderInContent = (text, placeholder, replacement, allowEscaped = false) => {
+    if (!placeholder) return text;
+    const escapedPlaceholder = placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = allowEscaped
+      ? new RegExp(`\\\\?${escapedPlaceholder}`)
+      : new RegExp(escapedPlaceholder);
+    return text.replace(pattern, () => replacement);
+  };
+
   // Handle voice recording start - insert placeholder
   const handleVoiceRecordingStart = (placeholder) => {
     if (isMarkdown && markdownEditorRef.current) {
@@ -370,7 +494,12 @@ const NoteEditor = () => {
         markdownEditorRef.current.replaceText(placeholder, transcribedText);
         // Also update content state and save
         setContent((prevContent) => {
-          const newContent = prevContent.replace(placeholder, transcribedText);
+          const newContent = replacePlaceholderInContent(
+            prevContent,
+            placeholder,
+            transcribedText,
+            true
+          );
           if (currentNote) {
             saveNote(newContent);
           }
@@ -379,7 +508,11 @@ const NoteEditor = () => {
       } else {
         // Replace placeholder with transcribed text
         setContent((prevContent) => {
-          const newContent = prevContent.replace(placeholder, transcribedText);
+          const newContent = replacePlaceholderInContent(
+            prevContent,
+            placeholder,
+            transcribedText
+          );
           if (currentNote) {
             saveNote(newContent);
           }
@@ -480,7 +613,12 @@ const NoteEditor = () => {
             // Replace placeholder with transcribed text
             // Use captured notePathAtDrop to avoid stale closure issues
             setContent((prevContent) => {
-              const newContent = prevContent.replace(placeholder, result.text);
+              const newContent = replacePlaceholderInContent(
+                prevContent,
+                placeholder,
+                result.text,
+                isMarkdownAtDrop
+              );
               // Save using captured path, not current note reference
               if (notePathAtDrop) {
                 updateNote(notePathAtDrop, newContent).catch((err) => {
@@ -498,7 +636,12 @@ const NoteEditor = () => {
             // Replace placeholder with error message
             const errorText = `[Error transcribing audio]`;
             setContent((prevContent) =>
-              prevContent.replace(placeholder, errorText)
+              replacePlaceholderInContent(
+                prevContent,
+                placeholder,
+                errorText,
+                isMarkdownAtDrop
+              )
             );
             if (isMarkdownAtDrop && markdownEditorRef.current) {
               markdownEditorRef.current.replaceText(placeholder, errorText);
@@ -602,6 +745,8 @@ const NoteEditor = () => {
               content={content}
               onChange={handleMarkdownChange}
               mode={editorMode}
+              onSourceSelection={handleMarkdownSourceSelection}
+              onRenderSelection={handleMarkdownRenderSelection}
             />
             {/* Drop overlay - captures drop events before MDXEditor */}
             {isDraggingOver && (
@@ -634,8 +779,8 @@ const NoteEditor = () => {
           />
         )}
 
-        {/* Selection Toolbar - only for text files */}
-        {!isMarkdown && hasSelection && isToolbarVisible && availableOperations.length > 0 && (
+        {/* Selection Toolbar */}
+        {hasSelection && isToolbarVisible && availableOperations.length > 0 && (
           <SelectionToolbar
             position={toolbarPosition}
             operations={availableOperations}

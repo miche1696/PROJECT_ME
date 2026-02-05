@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { notesApi } from '../api/notes';
 import { foldersApi } from '../api/folders';
 
@@ -16,6 +16,27 @@ export const NotesProvider = ({ children }) => {
   const [notes, setNotes] = useState([]);
   const [folderTree, setFolderTree] = useState(null);
   const [currentNote, setCurrentNote] = useState(null);
+  const [bootstrapStatus, setBootstrapStatus] = useState('idle'); // idle | loading | ready | error
+  const [bootstrapError, setBootstrapError] = useState(null);
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
+  const [bootstrapRetryInMs, setBootstrapRetryInMs] = useState(null);
+  const retryTimeoutRef = useRef(null);
+  const bootstrapAttemptRef = useRef(0);
+
+  const clearRetry = useCallback(() => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+  }, []);
+
+  const scheduleRetry = useCallback((delayMs, retryFn) => {
+    clearRetry();
+    setBootstrapRetryInMs(delayMs);
+    retryTimeoutRef.current = setTimeout(() => {
+      retryFn();
+    }, delayMs);
+  }, [clearRetry]);
 
   // Fetch folder tree on mount
   const refreshFolders = useCallback(async () => {
@@ -53,19 +74,26 @@ export const NotesProvider = ({ children }) => {
   }, [refreshFolders, refreshNotes]);
 
   // Update note content
+  // IMPORTANT: We do NOT update currentNote here because:
+  // 1. The local component state already has the latest content
+  // 2. Updating currentNote triggers re-renders that reset MDXEditor cursor position
+  // 3. We also skip refreshNotes() since content changes don't affect the notes list
   const updateNote = useCallback(async (notePath, content) => {
     try {
       const note = await notesApi.updateNote(notePath, content);
+      // Only update the content in currentNote without replacing the entire object
+      // This avoids triggering re-renders that would reset editor state
       if (currentNote && currentNote.path === notePath) {
-        setCurrentNote(note);
+        // Update only the content field, preserving reference stability
+        currentNote.content = content;
       }
-      await refreshNotes();
+      // Skip refreshNotes() - content changes don't affect the folder tree or note list
       return note;
     } catch (error) {
       console.error('Error updating note:', error);
       throw error;
     }
-  }, [currentNote, refreshNotes]);
+  }, [currentNote]);
 
   // Delete note
   const deleteNote = useCallback(async (notePath) => {
@@ -190,10 +218,43 @@ export const NotesProvider = ({ children }) => {
   }, [refreshFolders, refreshNotes]);
 
   // Initialize: load folder tree and notes
+  const loadInitialData = useCallback(async ({ resetAttempt = false } = {}) => {
+    clearRetry();
+    setBootstrapStatus('loading');
+    setBootstrapError(null);
+
+    if (resetAttempt) {
+      bootstrapAttemptRef.current = 0;
+      setBootstrapAttempt(0);
+      setBootstrapRetryInMs(null);
+    }
+
+    try {
+      await Promise.all([refreshFolders(), refreshNotes()]);
+      bootstrapAttemptRef.current = 0;
+      setBootstrapAttempt(0);
+      setBootstrapRetryInMs(null);
+      setBootstrapStatus('ready');
+    } catch (error) {
+      bootstrapAttemptRef.current += 1;
+      const attempt = bootstrapAttemptRef.current;
+      setBootstrapAttempt(attempt);
+      setBootstrapStatus('error');
+      setBootstrapError(error);
+
+      const delayMs = Math.min(500 * Math.pow(2, attempt - 1), 10000);
+      scheduleRetry(delayMs, loadInitialData);
+    }
+  }, [clearRetry, refreshFolders, refreshNotes, scheduleRetry]);
+
   useEffect(() => {
-    refreshFolders();
-    refreshNotes();
-  }, [refreshFolders, refreshNotes]);
+    loadInitialData();
+    return () => {
+      clearRetry();
+    };
+  }, [clearRetry, loadInitialData]);
+
+  const retryBootstrap = useCallback(() => loadInitialData({ resetAttempt: true }), [loadInitialData]);
 
   const value = {
     notes,
@@ -212,6 +273,11 @@ export const NotesProvider = ({ children }) => {
     moveFolder,
     refreshNotes,
     refreshFolders,
+    bootstrapStatus,
+    bootstrapError,
+    bootstrapAttempt,
+    bootstrapRetryInMs,
+    retryBootstrap,
   };
 
   return <NotesContext.Provider value={value}>{children}</NotesContext.Provider>;

@@ -5,16 +5,18 @@ from typing import List, Optional
 from models.note import Note
 from models.folder import Folder
 
+# TODO : GENERAL TODO : Research what happens if the process stops mid-execution + race conditions (in case of collaborative editing)
 
 class FileService:
     """Service for file system operations on notes and folders."""
 
     SUPPORTED_EXTENSIONS = ['.txt', '.md']
 
-    def __init__(self, notes_dir: Path):
+    def __init__(self, notes_dir: Path, trace_logger=None):
         """Initialize file service with notes directory."""
         self.notes_dir = Path(notes_dir).resolve()
         self.notes_dir.mkdir(parents=True, exist_ok=True)
+        self.trace_logger = trace_logger
 
     def _has_valid_extension(self, note_path: str) -> bool:
         """Check if note path has a valid extension."""
@@ -112,7 +114,16 @@ class FileService:
         if not full_path.exists():
             raise FileNotFoundError(f"Note not found: {note_path}")
 
-        return full_path.read_text(encoding='utf-8')
+        content = full_path.read_text(encoding='utf-8')
+        if self.trace_logger:
+            self.trace_logger.write(
+                "file.read",
+                data={
+                    "path": note_path,
+                    "size": len(content),
+                },
+            )
+        return content
 
     def write_note(self, note_path: str, content: str) -> None:
         """
@@ -134,6 +145,14 @@ class FileService:
 
         # Write content
         full_path.write_text(content, encoding='utf-8')
+        if self.trace_logger:
+            self.trace_logger.write(
+                "file.write",
+                data={
+                    "path": note_path,
+                    "size": len(content),
+                },
+            )
 
     def delete_note(self, note_path: str) -> None:
         """
@@ -154,6 +173,13 @@ class FileService:
             raise FileNotFoundError(f"Note not found: {note_path}")
 
         full_path.unlink()
+        if self.trace_logger:
+            self.trace_logger.write(
+                "file.delete",
+                data={
+                    "path": note_path,
+                },
+            )
 
     def rename_note(self, old_path: str, new_name: str) -> str:
         """
@@ -205,7 +231,16 @@ class FileService:
         full_old_path.rename(new_full_path)
 
         # Return new relative path
-        return str(new_full_path.relative_to(self.notes_dir)).replace('\\', '/')
+        new_relative_path = str(new_full_path.relative_to(self.notes_dir)).replace('\\', '/')
+        if self.trace_logger:
+            self.trace_logger.write(
+                "file.rename",
+                data={
+                    "from": old_path,
+                    "to": new_relative_path,
+                },
+            )
+        return new_relative_path
 
     def move_note(self, note_path: str, target_folder: str) -> str:
         """
@@ -268,6 +303,14 @@ class FileService:
             if result.endswith(ext):
                 result = result[:-len(ext)]
                 break
+        if self.trace_logger:
+            self.trace_logger.write(
+                "file.move",
+                data={
+                    "from": note_path,
+                    "to": result,
+                },
+            )
         return result
 
     def list_notes(self, folder_path: str = "") -> List[dict]:
@@ -304,7 +347,7 @@ class FileService:
                         continue
 
         # Sort by modified date (newest first)
-        notes.sort(key=lambda n: n['modified_at'], reverse=True)
+        notes.sort(key=lambda n: n['modified_at'], reverse=True) # TODO : Give the chance to the user to sort by different criteria. Or at least to have a "saved" desired sorting key.
 
         return notes
 
@@ -327,7 +370,7 @@ class FileService:
                         continue
 
         # Sort by modified date (newest first)
-        notes.sort(key=lambda n: n['modified_at'], reverse=True)
+        notes.sort(key=lambda n: n['modified_at'], reverse=True) # TODO : Give the chance to the user to sort by different criteria. Or at least to have a "saved" desired sorting key.
 
         return notes
 
@@ -350,6 +393,13 @@ class FileService:
             raise FileExistsError(f"Folder already exists: {folder_path}")
 
         full_path.mkdir(parents=True, exist_ok=False)
+        if self.trace_logger:
+            self.trace_logger.write(
+                "folder.create",
+                data={
+                    "path": folder_path,
+                },
+            )
 
     def delete_folder(self, folder_path: str, recursive: bool = False) -> None:
         """
@@ -383,6 +433,14 @@ class FileService:
                 full_path.rmdir()
             except OSError as e:
                 raise OSError(f"Folder not empty: {folder_path}") from e
+        if self.trace_logger:
+            self.trace_logger.write(
+                "folder.delete",
+                data={
+                    "path": folder_path,
+                    "recursive": recursive,
+                },
+            )
 
     def rename_folder(self, old_path: str, new_name: str) -> str:
         """
@@ -430,7 +488,16 @@ class FileService:
         full_old_path.rename(new_full_path)
 
         # Return new relative path
-        return str(new_full_path.relative_to(self.notes_dir)).replace('\\', '/')
+        new_relative_path = str(new_full_path.relative_to(self.notes_dir)).replace('\\', '/')
+        if self.trace_logger:
+            self.trace_logger.write(
+                "folder.rename",
+                data={
+                    "from": old_path,
+                    "to": new_relative_path,
+                },
+            )
+        return new_relative_path
 
     def move_folder(self, folder_path: str, target_folder: str) -> str:
         """
@@ -510,7 +577,16 @@ class FileService:
         shutil.move(str(full_folder_path), str(new_full_path))
 
         # Return new relative path
-        return str(new_full_path.relative_to(self.notes_dir)).replace('\\', '/')
+        new_relative_path = str(new_full_path.relative_to(self.notes_dir)).replace('\\', '/')
+        if self.trace_logger:
+            self.trace_logger.write(
+                "folder.move",
+                data={
+                    "from": folder_path,
+                    "to": new_relative_path,
+                },
+            )
+        return new_relative_path
 
     def get_folder_tree(self, folder_path: str = "") -> dict:
         """
@@ -566,7 +642,7 @@ class FileService:
                         continue
 
         # Sort notes by modified date
-        notes.sort(key=lambda n: n['modified_at'], reverse=True)
+        notes.sort(key=lambda n: n['modified_at'], reverse=True) # TODO : Give the chance to the user to sort by different criteria. Or at least to have a "saved" desired sorting key.
 
         # Get subfolders recursively
         children = []
@@ -597,7 +673,7 @@ class FileService:
         name = name.strip()
 
         # Remove or replace dangerous characters
-        dangerous_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|', '\0']
+        dangerous_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|', '\0'] # TODO : Does folder names need to be sanitized this hard? On MAC i could remove many of these.
         for char in dangerous_chars:
             name = name.replace(char, '-')
 

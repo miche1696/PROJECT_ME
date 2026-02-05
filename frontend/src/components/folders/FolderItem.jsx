@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNotes } from '../../context/NotesContext';
 import { useApp } from '../../context/AppContext';
 import { transcriptionApi } from '../../api/transcription';
@@ -19,7 +20,14 @@ const FolderItem = ({ folder, level = 0, onClearRootDragOver }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
-  const { createNote, refreshFolders, moveNote, moveFolder, renameFolder } = useNotes();
+  const [showNewFolderModal, setShowNewFolderModal] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [contextMenu, setContextMenu] = useState(null);
+  const [menuPosition, setMenuPosition] = useState(null);
+  const [showNoteSubmenu, setShowNoteSubmenu] = useState(false);
+  const [submenuSide, setSubmenuSide] = useState('right');
+  const menuRef = useRef(null);
+  const { createNote, createFolder, refreshFolders, moveNote, moveFolder, renameFolder } = useNotes();
   const { setError } = useApp();
 
   const isRootFolder = level === 0 && folder.path === '';
@@ -84,6 +92,65 @@ const FolderItem = ({ folder, level = 0, onClearRootDragOver }) => {
   const handleRenameBlur = () => {
     handleRenameSubmit();
   };
+
+  useEffect(() => {
+    if (!contextMenu) {
+      setMenuPosition(null);
+      setShowNoteSubmenu(false);
+      return;
+    }
+
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setContextMenu(null);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setContextMenu(null);
+      }
+    };
+
+    const handleScroll = () => {
+      setContextMenu(null);
+    };
+
+    window.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleScroll);
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [contextMenu]);
+
+  useLayoutEffect(() => {
+    if (!contextMenu || !menuRef.current) return;
+
+    const rect = menuRef.current.getBoundingClientRect();
+    const padding = 8;
+    let x = contextMenu.x;
+    let y = contextMenu.y;
+
+    if (x + rect.width > window.innerWidth - padding) {
+      x = Math.max(padding, window.innerWidth - rect.width - padding);
+    }
+    if (y + rect.height > window.innerHeight - padding) {
+      y = Math.max(padding, window.innerHeight - rect.height - padding);
+    }
+
+    setMenuPosition({ x, y });
+
+    const submenuWidth = 180;
+    const rightSpace = window.innerWidth - (x + rect.width);
+    const leftSpace = x;
+    const nextSide = rightSpace < submenuWidth && leftSpace > submenuWidth ? 'left' : 'right';
+    setSubmenuSide(nextSide);
+  }, [contextMenu, showNoteSubmenu]);
 
   // Check if target folder is a descendant of source folder
   const isDescendant = (sourcePath, targetPath) => {
@@ -206,6 +273,9 @@ const FolderItem = ({ folder, level = 0, onClearRootDragOver }) => {
       e.preventDefault();
       return;
     }
+    if (contextMenu) {
+      setContextMenu(null);
+    }
     setIsDragging(true);
     // Set data transfer with folder information
     e.dataTransfer.setData('application/folder', JSON.stringify({
@@ -219,6 +289,40 @@ const FolderItem = ({ folder, level = 0, onClearRootDragOver }) => {
 
   const handleDragEnd = () => {
     setIsDragging(false);
+  };
+
+  const handleContextMenu = (e) => {
+    if (isEditing || isRootFolder) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleNewNote = async (fileType = 'txt') => {
+    try {
+      const now = new Date();
+      const date = now.toISOString().slice(0, 10).replace(/-/g, '');
+      const time = now.toTimeString().slice(0, 8).replace(/:/g, '');
+      const noteName = `${date}-${time} - New note`;
+      await createNote(noteName, folder.path, '', fileType);
+      setIsExpanded(true);
+      setContextMenu(null);
+    } catch (error) {
+      setError('Failed to create note: ' + error.message);
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return;
+
+    try {
+      await createFolder(newFolderName.trim(), folder.path);
+      setIsExpanded(true);
+      setNewFolderName('');
+      setShowNewFolderModal(false);
+    } catch (error) {
+      setError('Failed to create folder: ' + error.message);
+    }
   };
 
   const indentStyle = {
@@ -238,6 +342,7 @@ const FolderItem = ({ folder, level = 0, onClearRootDragOver }) => {
         draggable={!isRootFolder && !isEditing}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onContextMenu={handleContextMenu}
       >
         <span className="folder-icon">{isExpanded ? '📂' : '📁'}</span>
         {isEditing ? (
@@ -259,6 +364,57 @@ const FolderItem = ({ folder, level = 0, onClearRootDragOver }) => {
         )}
       </div>
 
+      {contextMenu &&
+        createPortal(
+          <div
+            className="folder-context-menu"
+            ref={menuRef}
+            style={{
+              top: `${(menuPosition || contextMenu).y}px`,
+              left: `${(menuPosition || contextMenu).x}px`,
+            }}
+          >
+            <button
+              type="button"
+              className="folder-context-item"
+              onClick={() => setShowNoteSubmenu(!showNoteSubmenu)}
+            >
+              New Note
+              <span className="folder-context-arrow">›</span>
+            </button>
+            {showNoteSubmenu && (
+              <div className={`folder-context-submenu ${submenuSide === 'left' ? 'left' : ''}`}>
+                <button
+                  type="button"
+                  className="folder-context-item"
+                  onClick={() => handleNewNote('txt')}
+                >
+                  Text Note (.txt)
+                </button>
+                <button
+                  type="button"
+                  className="folder-context-item"
+                  onClick={() => handleNewNote('md')}
+                >
+                  Markdown Note (.md)
+                </button>
+              </div>
+            )}
+            <div className="folder-context-separator" />
+            <button
+              type="button"
+              className="folder-context-item"
+              onClick={() => {
+                setContextMenu(null);
+                setShowNewFolderModal(true);
+              }}
+            >
+              New Folder
+            </button>
+          </div>,
+          document.body
+        )}
+
       {isExpanded && (
         <div className="folder-children">
           {/* Render notes in this folder */}
@@ -270,6 +426,31 @@ const FolderItem = ({ folder, level = 0, onClearRootDragOver }) => {
           {sortByName(folder.children).map((child) => (
             <FolderItem key={child.path} folder={child} level={level + 1} onClearRootDragOver={onClearRootDragOver} />
           ))}
+        </div>
+      )}
+
+      {showNewFolderModal && (
+        <div className="modal-overlay" onClick={() => setShowNewFolderModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Create New Folder</h3>
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="Folder name"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreateFolder();
+                if (e.key === 'Escape') setShowNewFolderModal(false);
+              }}
+            />
+            <div className="modal-actions">
+              <button onClick={() => setShowNewFolderModal(false)}>Cancel</button>
+              <button className="btn-primary" onClick={handleCreateFolder}>
+                Create
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

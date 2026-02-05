@@ -2,14 +2,21 @@
   position: fixed;
   z-index: 1000;
   display: flex;
-  align-items: center;
-  gap: 2px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   padding: 4px 6px;
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   animation: toolbar-appear 0.15s ease-out;
+}
+
+.toolbar-operations {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 @keyframes toolbar-appear {
@@ -46,6 +53,67 @@
   align-items: center;
   justify-content: center;
   margin-left: 8px;
+}
+
+.toolbar-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 240px;
+  max-width: 320px;
+}
+
+.toolbar-prompt-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.toolbar-prompt-input {
+  resize: vertical;
+  min-height: 60px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.toolbar-prompt-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06);
+}
+
+.toolbar-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.toolbar-prompt-button {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.toolbar-prompt-button.primary {
+  background-color: var(--accent-color);
+  color: var(--bg-primary);
+  border-color: var(--accent-color);
+}
+
+.toolbar-prompt-button.secondary {
+  background-color: transparent;
+  color: var(--text-primary);
+}
+
+.toolbar-prompt-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .loading-spinner {

@@ -60,7 +60,7 @@ class FolderService:
             'message': 'Folder created successfully'
         }
 
-    def rename_folder(self, folder_path: str, new_name: str) -> dict:
+    def rename_folder(self, folder_path: str, new_name: str) -> dict: # TODO : Where is this used?
         """
         Rename a folder.
 
@@ -84,7 +84,7 @@ class FolderService:
             'message': 'Folder renamed successfully'
         }
 
-    def delete_folder(self, folder_path: str, recursive: bool = False) -> dict:
+    def delete_folder(self, folder_path: str, recursive: bool = False) -> dict: # TODO : Where is this used? There is no "delete" folder button/function.
         """
         Delete a folder.
 

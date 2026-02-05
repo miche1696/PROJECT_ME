@@ -11,10 +11,16 @@ import './OperationButton.css';
  * @param {boolean} props.disabled - Whether the button is disabled
  */
 const OperationButton = ({ operation, onClick, isActive, disabled }) => {
+  // Prevent mousedown from stealing focus, which would clear contenteditable selection
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+  };
+
   return (
     <button
       className={`operation-button ${isActive ? 'active' : ''}`}
       onClick={onClick}
+      onMouseDown={handleMouseDown}
       disabled={disabled}
       title={operation.description}
       aria-label={operation.label}

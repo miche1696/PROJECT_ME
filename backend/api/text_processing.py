@@ -47,6 +47,17 @@ def process_text():
             return jsonify({'error': 'Text required'}), 400
 
         result = service.process(operation, text, options)
+        trace_logger = current_app.config.get('TRACE_LOGGER')
+        if trace_logger:
+            trace_logger.write(
+                "text.process",
+                data={
+                    "operation": operation,
+                    "input": text,
+                    "output": result.get("processed_text"),
+                    "options": options,
+                },
+            )
         return jsonify(result), 200
 
     except ValueError as e:

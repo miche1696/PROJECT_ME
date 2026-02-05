@@ -63,5 +63,5 @@ logs/security/
 *.lock
 
 # Logs
-backend.log
-frontend.log
+*.log
+*.jsonl

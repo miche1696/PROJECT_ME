@@ -3,7 +3,13 @@
 > vite
 
 
-  VITE v5.4.21  ready in 431 ms
+  VITE v5.4.21  ready in 298 ms
 
   ➜  Local:   http://localhost:5173/
   ➜  Network: use --host to expose
+7:54:58 PM [vite] hmr update /src/components/layout/Header.jsx
+7:55:19 PM [vite] hmr update /src/components/layout/Sidebar.jsx
+7:55:26 PM [vite] hmr update /src/components/layout/Sidebar.css
+8:01:39 PM [vite] hmr update /src/components/folders/FolderItem.jsx
+8:01:53 PM [vite] hmr update /src/components/folders/FolderItem.css
+8:03:37 PM [vite] hmr update /src/components/layout/Sidebar.css

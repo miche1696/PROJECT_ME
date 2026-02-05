@@ -70,3 +70,62 @@
 .folder-children {
   margin-top: 2px;
 }
+
+.folder-context-menu {
+  position: fixed;
+  z-index: 1200;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 180px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+.folder-context-item {
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.folder-context-item:hover {
+  background-color: var(--bg-secondary);
+}
+
+.folder-context-arrow {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.folder-context-separator {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 4px 0;
+}
+
+.folder-context-submenu {
+  position: absolute;
+  top: 4px;
+  left: calc(100% + 6px);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 180px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+.folder-context-submenu.left {
+  left: auto;
+  right: calc(100% + 6px);
+}

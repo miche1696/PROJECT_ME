@@ -1,14 +1,13 @@
 import whisper
-import os
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 import config
 
 
 class WhisperService:
     """Service for audio transcription using OpenAI Whisper."""
 
-    def __init__(self, model_name: str = "base"):
+    def __init__(self, model_name: str = "base", trace_logger: Optional[object] = None):
         """
         Initialize Whisper service and load model.
 
@@ -16,10 +15,44 @@ class WhisperService:
             model_name: Whisper model size (tiny, base, small, medium, large)
                        base is recommended for good balance of speed and accuracy
         """
-        print(f"Loading Whisper model: {model_name}...")
-        self.model = whisper.load_model(model_name)
-        self.model_name = model_name
-        print(f"Whisper model '{model_name}' loaded successfully")
+        self.trace_logger = trace_logger
+        resolved_model = self._resolve_model_name(model_name)
+
+        print(f"Loading Whisper model: {resolved_model}...")
+        self.model = whisper.load_model(resolved_model)
+        self.model_name = resolved_model
+        print(f"Whisper model '{resolved_model}' loaded successfully")
+
+        if self.trace_logger:
+            self.trace_logger.write(
+                "whisper.model.load",
+                data={
+                    "requested": model_name,
+                    "resolved": resolved_model,
+                },
+            )
+
+    def _resolve_model_name(self, model_name: str) -> str:
+        available = whisper.available_models()
+        if model_name in available:
+            return model_name
+
+        fallback = "base"
+        print(
+            f"Whisper model '{model_name}' not found. "
+            f"Falling back to '{fallback}'. "
+            f"Available: {available}"
+        )
+        if self.trace_logger:
+            self.trace_logger.write(
+                "whisper.model.fallback",
+                data={
+                    "requested": model_name,
+                    "fallback": fallback,
+                    "available": available,
+                },
+            )
+        return fallback
 
     def transcribe_audio(self, audio_path: str) -> dict:
         """
@@ -45,6 +78,15 @@ class WhisperService:
 
         try:
             print(f"Transcribing audio: {audio_file.name}")
+            if self.trace_logger:
+                self.trace_logger.write(
+                    "whisper.transcribe.start",
+                    data={
+                        "file": audio_file.name,
+                        "size_bytes": audio_file.stat().st_size,
+                        "model": self.model_name,
+                    },
+                )
 
             # Transcribe audio
             result = self.model.transcribe(
@@ -63,6 +105,16 @@ class WhisperService:
                 duration = last_segment.get('end', 0)
 
             print(f"Transcription complete. Language: {detected_language}, Duration: {duration:.2f}s")
+            if self.trace_logger:
+                self.trace_logger.write(
+                    "whisper.transcribe.complete",
+                    data={
+                        "file": audio_file.name,
+                        "language": detected_language,
+                        "duration_seconds": duration,
+                        "text_length": len(transcribed_text),
+                    },
+                )
 
             return {
                 'text': transcribed_text,
@@ -72,6 +124,14 @@ class WhisperService:
 
         except Exception as e:
             print(f"Transcription error: {str(e)}")
+            if self.trace_logger:
+                self.trace_logger.write(
+                    "whisper.transcribe.error",
+                    data={
+                        "file": audio_file.name if audio_file else None,
+                        "error": str(e),
+                    },
+                )
             raise Exception(f"Failed to transcribe audio: {str(e)}")
 
     def supported_formats(self) -> List[str]:

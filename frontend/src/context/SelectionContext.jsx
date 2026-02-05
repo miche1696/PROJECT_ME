@@ -26,7 +26,7 @@ export const SelectionProvider = ({ children }) => {
   const [operationError, setOperationError] = useState(null);
 
   // Derived state
-  const hasSelection = selectionStart !== selectionEnd && selectedText.length > 0;
+  const hasSelection = selectedText.length > 0;
 
   // Update selection from textarea
   const updateSelection = useCallback((start, end, text, position = null) => {

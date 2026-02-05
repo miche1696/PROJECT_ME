@@ -9,15 +9,17 @@ import { operationRegistry } from '../operations';
  * @param {Function} setContent - State setter for content
  * @param {React.RefObject} textareaRef - Ref to textarea element
  * @param {Function} onContentChange - Callback after content changes (for auto-save)
+ * @param {Function} replaceSelection - Optional replacement handler for non-textarea editors
  */
-export function useTextOperations(content, setContent, textareaRef, onContentChange) {
+export function useTextOperations(content, setContent, textareaRef, onContentChange, replaceSelection) {
   const {
+    selectedText,
     selectionStart,
     selectionEnd,
+    updateSelection,
     startOperation,
     completeOperation,
     failOperation,
-    clearSelection,
   } = useSelection();
 
   /**
@@ -35,7 +37,6 @@ export function useTextOperations(content, setContent, textareaRef, onContentCha
       }
 
       // Get the currently selected text
-      const selectedText = content.substring(selectionStart, selectionEnd);
       if (!selectedText) {
         console.warn('No text selected');
         return;
@@ -52,7 +53,15 @@ export function useTextOperations(content, setContent, textareaRef, onContentCha
           result = operation.handler(selectedText, options);
         }
 
-        // Replace selected text with result
+        if (typeof replaceSelection === 'function') {
+          await replaceSelection(result, { originalText: selectedText });
+          // Keep selection active with updated text (position stays the same)
+          updateSelection(0, result.length, result);
+          completeOperation();
+          return;
+        }
+
+        // Replace selected text with result in textarea-based editors
         const newContent =
           content.substring(0, selectionStart) +
           result +
@@ -61,7 +70,7 @@ export function useTextOperations(content, setContent, textareaRef, onContentCha
         setContent(newContent);
 
         // Update textarea selection to cover the new text
-        const textarea = textareaRef.current;
+        const textarea = textareaRef?.current;
         if (textarea) {
           const newEnd = selectionStart + result.length;
           // Use setTimeout to ensure state has updated
@@ -85,11 +94,14 @@ export function useTextOperations(content, setContent, textareaRef, onContentCha
     },
     [
       content,
+      selectedText,
       selectionStart,
       selectionEnd,
       setContent,
       textareaRef,
       onContentChange,
+      replaceSelection,
+      updateSelection,
       startOperation,
       completeOperation,
       failOperation,
@@ -101,9 +113,8 @@ export function useTextOperations(content, setContent, textareaRef, onContentCha
    * @returns {Object[]} List of available operations
    */
   const getAvailableOperations = useCallback(() => {
-    const selectedText = content.substring(selectionStart, selectionEnd);
-    return operationRegistry.getAvailable(selectedText);
-  }, [content, selectionStart, selectionEnd]);
+    return operationRegistry.getAvailable(selectedText || '');
+  }, [selectedText]);
 
   return {
     executeOperation,

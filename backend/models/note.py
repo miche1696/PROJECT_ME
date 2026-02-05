@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+# TODO : Understand what data models are needed to make "parallel" requests. (Aka making a registration/llm call on a note, then moving to another before the first is finished to execute another registration/llm call)
 
 @dataclass
 class Note:

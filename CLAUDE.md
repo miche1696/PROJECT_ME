@@ -81,11 +81,12 @@ No build step required. Backend runs directly via `python app.py`.
 - `FileService` - Low-level file operations (read/write/delete)
 - `NoteService` - Note CRUD operations, uses FileService
 - `FolderService` - Folder operations and tree building
+- TODO 'text_processing_service.py' missing. complete
 - `WhisperService` - Audio transcription using local Whisper model
 
 **Data storage:**
 - File-based storage in `notes/` directory
-- Notes stored as `.txt` files
+- Notes stored as `.txt` files (TODO now there are .md files)
 - Folder structure mirrors filesystem hierarchy
 
 ### Frontend (React/Vite)

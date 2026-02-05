@@ -1,15 +1,20 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request, g
 from flask_cors import CORS
+import time
+import uuid
 import config
 from services.file_service import FileService
 from services.note_service import NoteService
 from services.folder_service import FolderService
 from services.whisper_service import WhisperService
 from services.text_processing_service import TextProcessingService
+from services.openai_client import OpenAIClient
 from api.notes import notes_bp
 from api.folders import folders_bp
 from api.transcription import transcription_bp
 from api.text_processing import text_processing_bp
+from api.trace import trace_bp
+from utils.trace import TraceLogger
 
 
 def create_app():
@@ -30,18 +35,32 @@ def create_app():
     app.config['NOTES_DIR'] = config.NOTES_DIR
     app.config['UPLOADS_DIR'] = config.UPLOADS_DIR
 
+    # Initialize tracing
+    trace_logger = TraceLogger(config.TRACE_PATH, source="backend")
+    frontend_trace_logger = TraceLogger(config.FRONTEND_TRACE_PATH, source="frontend")
+
     # Initialize services
-    file_service = FileService(config.NOTES_DIR)
+    file_service = FileService(config.NOTES_DIR, trace_logger=trace_logger)
     note_service = NoteService(file_service)
     folder_service = FolderService(file_service)
 
     # Initialize Whisper service (this may take a moment to load the model)
     print("Initializing Whisper service...")
-    whisper_service = WhisperService(model_name=config.WHISPER_MODEL)
+    whisper_service = WhisperService(
+        model_name=config.WHISPER_MODEL,
+        trace_logger=trace_logger,
+    )
 
     # Initialize text processing service
     print("Initializing text processing service...")
-    text_processing_service = TextProcessingService(llm_client=None)
+    llm_client = None
+    if config.OPENAI_API_KEY and config.OPENAI_MODEL:
+        llm_client = OpenAIClient(
+            api_key=config.OPENAI_API_KEY,
+            model=config.OPENAI_MODEL,
+            trace_logger=trace_logger,
+        )
+    text_processing_service = TextProcessingService(llm_client=llm_client)
 
     # Store services in app config for access in routes
     app.config['FILE_SERVICE'] = file_service
@@ -49,12 +68,70 @@ def create_app():
     app.config['FOLDER_SERVICE'] = folder_service
     app.config['WHISPER_SERVICE'] = whisper_service
     app.config['TEXT_PROCESSING_SERVICE'] = text_processing_service
+    app.config['TRACE_LOGGER'] = trace_logger
+    app.config['FRONTEND_TRACE_LOGGER'] = frontend_trace_logger
 
     # Register blueprints
     app.register_blueprint(notes_bp, url_prefix='/api/notes')
     app.register_blueprint(folders_bp, url_prefix='/api/folders')
     app.register_blueprint(transcription_bp, url_prefix='/api/transcription')
     app.register_blueprint(text_processing_bp, url_prefix='/api/text')
+    app.register_blueprint(trace_bp, url_prefix='/api/trace')
+
+    @app.before_request
+    def start_request_timer():
+        g.request_id = uuid.uuid4().hex
+        g.request_start = time.time()
+
+    @app.after_request
+    def log_request_trace(response):
+        # Avoid recursive tracing from client trace ingestion.
+        if request.path.startswith("/api/trace/client"):
+            return response
+
+        trace = app.config.get('TRACE_LOGGER')
+        if not trace:
+            return response
+
+        duration_ms = int((time.time() - g.get("request_start", time.time())) * 1000)
+        request_data = None
+        if request.is_json:
+            try:
+                request_data = request.get_json(silent=True)
+            except Exception:
+                request_data = None
+        elif request.files:
+            request_data = {
+                "files": {
+                    key: {
+                        "filename": file.filename,
+                        "content_type": file.mimetype,
+                    }
+                    for key, file in request.files.items()
+                }
+            }
+
+        response_data = None
+        if response.content_type and "application/json" in response.content_type:
+            try:
+                response_data = response.get_json(silent=True)
+            except Exception:
+                response_data = None
+
+        trace.write(
+            "api.response",
+            data={
+                "method": request.method,
+                "path": request.path,
+                "query": request.args.to_dict(flat=True),
+                "status": response.status_code,
+                "duration_ms": duration_ms,
+                "request": request_data,
+                "response": response_data,
+            },
+            request_id=g.get("request_id"),
+        )
+        return response
 
     # Health check endpoint
     @app.route('/api/health', methods=['GET'])
